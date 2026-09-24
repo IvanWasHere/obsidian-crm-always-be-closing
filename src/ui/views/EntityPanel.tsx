@@ -4,7 +4,8 @@ import type { CrmSnapshot } from '../../core/CrmSnapshot';
 import { fieldsFor, type FieldSpec, type FieldValue } from '../../core/fields';
 import type { Entity, EntityType, Interaction } from '../../core/types';
 import { contextValues } from '../../obsidian/prefill';
-import { openCreateModal, openLogInteractionModal } from '../../obsidian/modals';
+import { openCreateModal, openLogInteractionModal, openScheduleModal } from '../../obsidian/modals';
+import { exportMeetingIcs } from '../../obsidian/ics';
 import { readFieldValue, sameValue } from '../fieldValues';
 import { useCrm } from '../hooks/useCrm';
 import { useActiveFilePath } from '../hooks/useObsidian';
@@ -68,9 +69,14 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 				)}
 				<div className="abc-panel-actions">
 					{(entity.type === 'contact' || entity.type === 'deal') && (
-						<button onClick={() => openLogInteractionModal(plugin, contextValues(plugin, 'interaction'))}>
-							<Icon name="message-square-plus" /> Log interaction
-						</button>
+						<>
+							<button onClick={() => openLogInteractionModal(plugin, contextValues(plugin, 'interaction'))}>
+								<Icon name="message-square-plus" /> Log interaction
+							</button>
+							<button onClick={() => openScheduleModal(plugin, contextValues(plugin, 'interaction'))}>
+								<Icon name="calendar-plus" /> Schedule meeting
+							</button>
+						</>
 					)}
 					{entity.type === 'company' && (
 						<>
@@ -93,6 +99,11 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 						</>
 					)}
 					{(entity.type === 'quote' || entity.type === 'invoice') && <BillingActions doc={entity} />}
+					{entity.type === 'interaction' && entity.date && (
+						<button onClick={() => void exportMeetingIcs(plugin, entity)}>
+							<Icon name="calendar-plus" /> Add to calendar
+						</button>
+					)}
 				</div>
 			</div>
 
@@ -155,7 +166,7 @@ function PanelField({
 	};
 
 	// Text-like fields save on blur/Enter; pickers, dates and selects save right away.
-	const savesOnCommit = !['link', 'links', 'select', 'date', 'checkbox'].includes(spec.kind);
+	const savesOnCommit = !['link', 'links', 'select', 'date', 'time', 'checkbox'].includes(spec.kind);
 
 	return (
 		<div className="abc-field">

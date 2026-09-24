@@ -120,6 +120,23 @@ class FieldReader {
 		return undefined;
 	}
 
+	/**
+	 * `HH:MM` (24h). YAML 1.1 parsers read an unquoted `14:30` as the number
+	 * 870 (minutes in base 60), so that form is accepted too.
+	 */
+	time(key: string): string | undefined {
+		if (!this.has(key)) return undefined;
+		const v = this.fm[key];
+		const pad = (n: number) => String(n).padStart(2, '0');
+		if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 24 * 60) {
+			return `${pad(Math.floor(v / 60))}:${pad(v % 60)}`;
+		}
+		const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})/.exec(v.trim()) : null;
+		if (m && Number(m[1]) < 24 && Number(m[2]) < 60) return `${pad(Number(m[1]))}:${m[2]}`;
+		this.issues.push(`${key} should be a time (HH:MM)`);
+		return undefined;
+	}
+
 	oneOf<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
 		const v = this.string(key);
 		if (v === undefined) return fallback;
@@ -239,6 +256,9 @@ export function parseEntity(
 				type,
 				kind: r.oneOf<InteractionKind>('kind', INTERACTION_KINDS, 'note'),
 				date: r.date('date'),
+				time: r.time('time'),
+				duration: r.number('duration'),
+				location: r.string('location'),
 				contacts: r.links('contacts'),
 				deal: r.link('deal'),
 				summary: r.string('summary'),

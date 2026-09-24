@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 import { addDays } from '../../core/dates';
 import { closingSoon, followUps, openDeals, staleContacts, totalsByCurrency } from '../../core/insights';
 import { isOverdue } from '../../core/billing';
+import { calendarEvents } from '../../core/calendar';
 import { formatDate } from '../../core/schema';
 import type { Contact, Deal, Invoice } from '../../core/types';
 import { openLogInteractionModal } from '../../obsidian/modals';
@@ -26,6 +27,10 @@ export function DashboardView() {
 	const stale = useMemo(() => staleContacts(crm, today, staleAfterDays), [crm, today, staleAfterDays]);
 	const closing = useMemo(() => closingSoon(crm, today, CLOSING_WINDOW_DAYS), [crm, today]);
 	const open = useMemo(() => openDeals(crm), [crm]);
+	const meetings = useMemo(
+		() => calendarEvents(crm, today, addDays(today, 7), today, new Set(['meeting'])),
+		[crm, today],
+	);
 	const unpaid = crm.all('invoice').filter((i) => i.status === 'sent');
 	const overdue = unpaid.filter((i) => isOverdue(i, today)).sort((a, b) => (a.due ?? '').localeCompare(b.due ?? ''));
 	const outstanding: Record<string, number> = {};
@@ -59,6 +64,34 @@ export function DashboardView() {
 					</ul>
 				</Panel>
 			)}
+
+			<Panel title="Upcoming meetings" icon="calendar-clock" count={meetings.length}>
+				{meetings.length === 0 ? (
+					<div className="abc-muted">No meetings in the next 7 days.</div>
+				) : (
+					<ul className="abc-rows">
+						{meetings.map((m) => (
+							<li key={m.id} className="abc-row">
+								<div className="abc-row-main">
+									<NoteLink path={m.path}>{m.title}</NoteLink>
+									<div className="abc-row-detail abc-muted">
+										{[
+											relativeDay(m.date, today),
+											m.time &&
+												new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(
+													new Date(`2000-01-01T${m.time}:00Z`),
+												),
+											m.detail,
+										]
+											.filter(Boolean)
+											.join(' · ')}
+									</div>
+								</div>
+							</li>
+						))}
+					</ul>
+				)}
+			</Panel>
 
 			<Panel title="Follow-ups" icon="bell">
 				{nothingDue && <div className="abc-muted">Nothing due this week.</div>}

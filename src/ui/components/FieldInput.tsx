@@ -18,6 +18,7 @@ const INPUT_TYPES: Partial<Record<FieldSpec['kind'], string>> = {
 	tel: 'tel',
 	url: 'url',
 	date: 'date',
+	time: 'time',
 };
 
 /** The input control for one field, chosen by its kind. */

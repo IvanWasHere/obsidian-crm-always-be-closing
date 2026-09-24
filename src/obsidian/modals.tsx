@@ -174,3 +174,30 @@ export async function exportCsv(plugin: CrmPlugin, type: EntityType): Promise<st
 export function openImportModal(plugin: CrmPlugin) {
 	new ReactModal(plugin, 'Import contacts from CSV', (close) => <ImportContacts onDone={close} />).open();
 }
+
+/** The next full hour as `HH:MM` (09:00 if that would be past 20:00). */
+function nextHour(now = new Date()): string {
+	const h = now.getHours() + 1;
+	return `${String(h > 20 ? 9 : h).padStart(2, '0')}:00`;
+}
+
+/**
+ * Opens the "schedule meeting" form. Creates an interaction note with a date
+ * and time (future-dated interactions don't change "last contacted").
+ */
+export function openScheduleModal(plugin: CrmPlugin, initial: FieldValues = {}) {
+	new ReactModal(plugin, 'Schedule meeting', (close) => (
+		<EntityForm
+			type="interaction"
+			initial={{ kind: 'meeting', date: formatDate(new Date()), time: nextHour(), duration: '30', ...initial }}
+			fields={['kind', 'date', 'time', 'duration', 'contacts', 'deal', 'summary', 'location']}
+			submitLabel="Schedule"
+			bodyLabel="Agenda"
+			onSubmit={async (values, body) => {
+				await plugin.repo.logInteraction(values, body);
+				close();
+				new Notice('Meeting scheduled');
+			}}
+		/>
+	)).open();
+}

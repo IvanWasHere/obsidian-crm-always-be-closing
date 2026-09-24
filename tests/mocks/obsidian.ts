@@ -312,7 +312,13 @@ export class Modal {
 	close() {}
 }
 
-export const Platform = { isMobile: false, isDesktop: true, isPhone: false };
+export const Platform = { isMobile: false, isDesktop: true, isDesktopApp: false, isPhone: false };
+
+export class FileSystemAdapter {
+	getFullPath(path: string) {
+		return `/vault/${path}`;
+	}
+}
 
 export class SuggestModal<T> extends Modal {
 	setPlaceholder() {}

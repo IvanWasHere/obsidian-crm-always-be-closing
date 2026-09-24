@@ -4,6 +4,7 @@ import { PipelineView } from '../ui/views/PipelineView';
 import { CompaniesView } from '../ui/views/CompaniesView';
 import { BillingView } from '../ui/views/BillingView';
 import { ReportsView } from '../ui/views/ReportsView';
+import { CalendarView } from '../ui/views/CalendarView';
 import { ContactsView } from '../ui/views/ContactsView';
 import { EntityPanel } from '../ui/views/EntityPanel';
 
@@ -14,6 +15,7 @@ export const VIEW_TYPE_PIPELINE = 'always-be-closing-pipeline';
 export const VIEW_TYPE_COMPANIES = 'always-be-closing-companies';
 export const VIEW_TYPE_BILLING = 'always-be-closing-billing';
 export const VIEW_TYPE_REPORTS = 'always-be-closing-reports';
+export const VIEW_TYPE_CALENDAR = 'always-be-closing-calendar';
 
 /** The dashboard. Keeps the original `home` view type so saved workspaces still open it. */
 export class HomeItemView extends ReactItemView {
@@ -103,6 +105,21 @@ export class ReportsItemView extends ReactItemView {
 	}
 	protected renderView() {
 		return <ReportsView />;
+	}
+}
+
+export class CalendarItemView extends ReactItemView {
+	getViewType() {
+		return VIEW_TYPE_CALENDAR;
+	}
+	getDisplayText() {
+		return 'CRM calendar';
+	}
+	getIcon() {
+		return 'calendar-days';
+	}
+	protected renderView() {
+		return <CalendarView />;
 	}
 }
 

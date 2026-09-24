@@ -330,6 +330,12 @@ obsidian-crm/
   - The sender block comes from Settings → Your business: name, address, email, phone, tax ID, bank details, payment note and an optional PNG/JPEG logo from the vault. Companies gained `address` (multi-line) and `tax_id` for the recipient block.
   - Tax is printed per rate. Totals round tax per rate, so the printed lines always add up.
   - Labels are English for now.
+- **Calendar (meetings).**
+  - Scheduled meetings are interaction notes with `date`, `time` (`HH:MM`), `duration` (minutes) and `location`, created with "Schedule meeting". An interaction counts as scheduled if it's a meeting or dated in the future. Future-dated interactions don't change `last_contacted`.
+  - The Calendar view has Month, Week (time grid, overlapping meetings side by side, current-time line) and Agenda (next 30 days; the default on phones).
+  - Toggles for five categories: meetings, follow-ups, invoice due dates, deal closes and past interactions. Each has a fixed chart color slot plus an icon and a label; overdue items get a warning icon and "(overdue)".
+  - Calendar sync is out of scope. Instead, "Add to calendar" writes an `.ics` next to the meeting note (and "Export upcoming meetings" writes one file for all of them). On desktop the file opens in the system calendar app.
+  - The dashboard lists meetings in the next 7 days.
 - **Mixed currencies are never converted.** Totals are shown per currency (e.g. `€62,000 · $5,000`).
 - **The details panel docks itself** in the right sidebar on startup, without taking focus.
 - **Classic settings tab for now.** The declarative settings API needs Obsidian 1.13 and `minAppVersion` is 1.7.2. Revisit when we raise it (lint warns about this).
@@ -348,6 +354,7 @@ Milestones 2–5 are implemented and unit-tested (128 tests). The Reports charts
   - "New quote" / "New invoice" from a company, contact or deal note (pre-filled, next number)
   - Editing line items in the form and the details panel
   - Mark as sent / paid, Accepted / Declined, Create invoice from a quote
+  - Calendar: schedule from the toolbar, a day's "+" or a contact/deal panel; switch Month/Week/Agenda; toggles; "Add to calendar" opens the .ics in your calendar app (desktop)
   - Create PDF: fill in Settings → Your business (try a logo), then check it opens in Obsidian's PDF viewer
   - "Open invoices and quotes"
   - "Open reports" (all four periods, table toggles, hover and keyboard tooltips)

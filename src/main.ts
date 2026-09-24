@@ -2,6 +2,7 @@ import { Plugin } from 'obsidian';
 import { CrmSettingTab, CrmSettings, mergeSettings } from './settings';
 import {
 	BillingItemView,
+	CalendarItemView,
 	CompaniesItemView,
 	ContactsItemView,
 	EntityPanelItemView,
@@ -9,6 +10,7 @@ import {
 	PipelineItemView,
 	ReportsItemView,
 	VIEW_TYPE_BILLING,
+	VIEW_TYPE_CALENDAR,
 	VIEW_TYPE_COMPANIES,
 	VIEW_TYPE_CONTACTS,
 	VIEW_TYPE_ENTITY_PANEL,
@@ -53,6 +55,7 @@ export default class CrmPlugin extends Plugin {
 		this.registerView(VIEW_TYPE_COMPANIES, (leaf) => new CompaniesItemView(leaf, this));
 		this.registerView(VIEW_TYPE_BILLING, (leaf) => new BillingItemView(leaf, this));
 		this.registerView(VIEW_TYPE_REPORTS, (leaf) => new ReportsItemView(leaf, this));
+		this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarItemView(leaf, this));
 
 		this.addRibbonIcon('contact', 'Open CRM dashboard', () => {
 			void this.activateView(VIEW_TYPE_HOME);

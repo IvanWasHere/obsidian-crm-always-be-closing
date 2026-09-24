@@ -1,9 +1,18 @@
 import type CrmPlugin from '../main';
-import { ExportTypeModal, QuickLogModal, openCreateModal, openImportModal, openLogInteractionModal } from './modals';
+import {
+	ExportTypeModal,
+	QuickLogModal,
+	openCreateModal,
+	openImportModal,
+	openLogInteractionModal,
+	openScheduleModal,
+} from './modals';
 import { contextValues } from './prefill';
 import { exportAndOpenPdf } from './pdf';
+import { exportMeetingIcs, exportUpcomingIcs } from './ics';
 import {
 	VIEW_TYPE_BILLING,
+	VIEW_TYPE_CALENDAR,
 	VIEW_TYPE_COMPANIES,
 	VIEW_TYPE_CONTACTS,
 	VIEW_TYPE_ENTITY_PANEL,
@@ -52,6 +61,32 @@ export function registerCommands(plugin: CrmPlugin) {
 		id: 'new-invoice',
 		name: 'New invoice',
 		callback: () => openCreateModal(plugin, 'invoice', contextValues(plugin, 'billing')),
+	});
+	plugin.addCommand({
+		id: 'open-calendar',
+		name: 'Open calendar',
+		callback: () => void plugin.activateView(VIEW_TYPE_CALENDAR),
+	});
+	plugin.addCommand({
+		id: 'schedule-meeting',
+		name: 'Schedule meeting',
+		callback: () => openScheduleModal(plugin, contextValues(plugin, 'interaction')),
+	});
+	plugin.addCommand({
+		id: 'export-meeting-ics',
+		name: 'Add this meeting to my calendar (.ics)',
+		checkCallback: (checking) => {
+			const path = plugin.app.workspace.getActiveFile()?.path;
+			const interaction = path ? plugin.index.getSnapshot().get(path, 'interaction') : undefined;
+			if (!interaction?.date) return false;
+			if (!checking) void exportMeetingIcs(plugin, interaction);
+			return true;
+		},
+	});
+	plugin.addCommand({
+		id: 'export-upcoming-ics',
+		name: 'Export upcoming meetings (.ics)',
+		callback: () => void exportUpcomingIcs(plugin),
 	});
 	plugin.addCommand({
 		id: 'export-pdf',

@@ -158,6 +158,7 @@ describe('csv export', () => {
 
 		const interactions = exportTable('interaction', index.getSnapshot(), settings);
 		expect(interactions[0]![0]).toBe('name');
-		expect(interactions[1]!.slice(0, 4)).toEqual(['2026-09-01 Call', 'call', '', 'Ann; Ghost']);
+		// name, kind, date, time, duration, location, contacts
+		expect(interactions[1]!.slice(0, 7)).toEqual(['2026-09-01 Call', 'call', '', '', '', '', 'Ann; Ghost']);
 	});
 });

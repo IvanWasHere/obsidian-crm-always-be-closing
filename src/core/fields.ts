@@ -14,7 +14,8 @@ export type FieldKind =
 	| 'links'
 	| 'tags'
 	| 'items'
-	| 'multiline';
+	| 'multiline'
+	| 'time';
 
 /**
  * One editable frontmatter field. Forms, the entity panel and
@@ -82,6 +83,9 @@ export const FIELDS: Record<EntityType, FieldSpec[]> = {
 	interaction: [
 		f('kind', 'Kind', 'select', { options: () => INTERACTION_KINDS }),
 		f('date', 'Date', 'date'),
+		f('time', 'Time', 'time'),
+		f('duration', 'Duration (min)', 'number', { placeholder: '30' }),
+		f('location', 'Location', 'text', { placeholder: 'Office, address or video link' }),
 		f('contacts', 'Contacts', 'links', { target: 'contact' }),
 		f('deal', 'Deal', 'link', { target: 'deal' }),
 		f('summary', 'Summary', 'text'),

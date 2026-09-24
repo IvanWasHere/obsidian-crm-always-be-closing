@@ -99,7 +99,8 @@ export class CrmRepository {
 
 	/**
 	 * Creates an interaction note and moves `last_contacted` forward on every
-	 * linked contact (except for plain notes, which aren't a touchpoint).
+	 * linked contact, except for plain notes (not a touchpoint) and scheduled
+	 * interactions dated in the future (they haven't happened yet).
 	 */
 	async logInteraction(values: FieldValues, body = ''): Promise<TFile> {
 		const kind = (INTERACTION_KINDS as readonly string[]).includes(values.kind as string)
@@ -113,7 +114,7 @@ export class CrmRepository {
 		const fm = this.frontmatter('interaction', { ...withoutEmpty(values), kind, date }, path);
 		const file = await this.createNote(path, fm, body);
 
-		if (kind !== 'note') {
+		if (kind !== 'note' && date <= today()) {
 			for (const contactPath of contactPaths) {
 				const contact = this.fileAt(contactPath);
 				if (!contact) continue;

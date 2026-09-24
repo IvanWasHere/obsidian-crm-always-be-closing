@@ -99,6 +99,11 @@ export interface Interaction extends EntityBase {
 	type: 'interaction';
 	kind: InteractionKind;
 	date?: DateString;
+	/** Start time `HH:MM` for scheduled meetings and calls. */
+	time?: string;
+	/** Length in minutes. */
+	duration?: number;
+	location?: string;
 	contacts: Wikilink[];
 	deal?: Wikilink;
 	summary?: string;
