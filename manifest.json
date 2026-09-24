@@ -1,0 +1,9 @@
+{
+	"id": "vault-crm",
+	"name": "Vault CRM",
+	"version": "0.0.1",
+	"minAppVersion": "1.7.2",
+	"description": "Personal CRM: contacts, companies, deals and interactions stored as Markdown notes.",
+	"author": "Ivan Marinkovic",
+	"isDesktopOnly": false
+}
