@@ -57,7 +57,7 @@ export default class CrmPlugin extends Plugin {
 		this.registerView(VIEW_TYPE_REPORTS, (leaf) => new ReportsItemView(leaf, this));
 		this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarItemView(leaf, this));
 
-		this.addRibbonIcon('contact', 'Open CRM dashboard', () => {
+		this.addRibbonIcon('contact', 'Open AlwaysBeClosing dashboard', () => {
 			void this.activateView(VIEW_TYPE_HOME);
 		});
 

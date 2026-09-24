@@ -23,7 +23,7 @@ export class HomeItemView extends ReactItemView {
 		return VIEW_TYPE_HOME;
 	}
 	getDisplayText() {
-		return 'CRM';
+		return 'AlwaysBeClosing';
 	}
 	getIcon() {
 		return 'contact';
@@ -98,7 +98,7 @@ export class ReportsItemView extends ReactItemView {
 		return VIEW_TYPE_REPORTS;
 	}
 	getDisplayText() {
-		return 'CRM reports';
+		return 'AlwaysBeClosing reports';
 	}
 	getIcon() {
 		return 'bar-chart-3';
@@ -113,7 +113,7 @@ export class CalendarItemView extends ReactItemView {
 		return VIEW_TYPE_CALENDAR;
 	}
 	getDisplayText() {
-		return 'CRM calendar';
+		return 'AlwaysBeClosing calendar';
 	}
 	getIcon() {
 		return 'calendar-days';
@@ -129,7 +129,7 @@ export class EntityPanelItemView extends ReactItemView {
 		return VIEW_TYPE_ENTITY_PANEL;
 	}
 	getDisplayText() {
-		return 'CRM details';
+		return 'AlwaysBeClosing details';
 	}
 	getIcon() {
 		return 'id-card';

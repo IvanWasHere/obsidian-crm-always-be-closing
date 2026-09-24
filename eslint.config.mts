@@ -1,6 +1,7 @@
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import reactHooks from 'eslint-plugin-react-hooks';
 import { DEFAULT_ACRONYMS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/acronyms.js';
+import { DEFAULT_BRANDS } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/brands.js';
 import globals from 'globals';
 import { globalIgnores, defineConfig } from 'eslint/config';
 
@@ -38,7 +39,12 @@ export default defineConfig(
 		rules: {
 			'obsidianmd/ui/sentence-case': [
 				'warn',
-				{ enforceCamelCaseLower: true, acronyms: [...DEFAULT_ACRONYMS, 'CRM', 'PDF'] },
+				{
+					enforceCamelCaseLower: true,
+					acronyms: [...DEFAULT_ACRONYMS, 'CRM', 'PDF'],
+					// The plugin's name as shown in tab titles.
+					brands: [...DEFAULT_BRANDS, 'AlwaysBeClosing'],
+				},
 			],
 		},
 	},
