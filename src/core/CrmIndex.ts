@@ -9,6 +9,8 @@ const FOLDER_TYPES: [keyof CrmSettings['folders'], EntityType][] = [
 	['companies', 'company'],
 	['deals', 'deal'],
 	['interactions', 'interaction'],
+	['quotes', 'quote'],
+	['invoices', 'invoice'],
 ];
 
 /**
@@ -40,6 +42,12 @@ export class CrmIndex {
 	private fullRescan = false;
 	private relinkNeeded = false;
 	private timer: number | null = null;
+
+	/**
+	 * Called when a deal already in the index changes stage (from any source,
+	 * including manual frontmatter edits). Not called for the initial scan.
+	 */
+	onDealStageChange?: (path: string, stage: string, previous: { stage: string; since?: string }) => void;
 
 	constructor(
 		private app: App,
@@ -136,9 +144,15 @@ export class CrmIndex {
 		let changed = false;
 		for (const path of this.dirty) {
 			const file = this.app.vault.getAbstractFileByPath(path);
+			const before = this.entities.get(path);
 			const had = this.entities.delete(path);
 			const has = file instanceof TFile && this.indexFile(file);
 			changed ||= had || has;
+
+			const after = this.entities.get(path);
+			if (before?.type === 'deal' && after?.type === 'deal' && before.stage !== after.stage) {
+				this.onDealStageChange?.(path, after.stage, { stage: before.stage, since: before.created });
+			}
 		}
 		return changed;
 	}
@@ -149,7 +163,10 @@ export class CrmIndex {
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const type = classify(file.path, fm, settings);
 		if (!type) return false;
-		this.entities.set(file.path, parseEntity(type, file.path, fm, { stages: settings.pipelineStages }));
+		this.entities.set(
+			file.path,
+			parseEntity(type, file.path, fm, { stages: settings.pipelineStages }, file.stat.ctime),
+		);
 		return true;
 	}
 

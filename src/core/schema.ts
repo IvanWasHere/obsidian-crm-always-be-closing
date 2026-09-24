@@ -1,6 +1,9 @@
+import { parseLineItems, parseStageHistory, totalsOf } from './billing';
 import {
 	CONTACT_STATUSES,
 	INTERACTION_KINDS,
+	INVOICE_STATUSES,
+	QUOTE_STATUSES,
 	TYPE_TAGS,
 	type Company,
 	type Contact,
@@ -11,6 +14,10 @@ import {
 	type EntityType,
 	type Interaction,
 	type InteractionKind,
+	type Invoice,
+	type InvoiceStatus,
+	type Quote,
+	type QuoteStatus,
 	type Wikilink,
 } from './types';
 
@@ -153,9 +160,22 @@ class FieldReader {
  * Parses frontmatter into an entity of the given type. Never throws:
  * invalid fields are dropped and reported in `issues`.
  */
-export function parseEntity(type: EntityType, path: string, fm: Frontmatter | undefined, options: ParseOptions): Entity {
+export function parseEntity(
+	type: EntityType,
+	path: string,
+	fm: Frontmatter | undefined,
+	options: ParseOptions,
+	/** File creation time (ms), used when there's no `created` field. */
+	ctime?: number,
+): Entity {
 	const r = new FieldReader(fm ?? {});
-	const base = { path, name: r.string('name') ?? basename(path), tags: r.tags() };
+	const base = {
+		path,
+		name: r.string('name') ?? (type === 'quote' || type === 'invoice' ? r.string('number') : undefined) ?? basename(path),
+		tags: r.tags(),
+		frontmatter: fm ?? {},
+		created: r.date('created') ?? (ctime ? formatDate(new Date(ctime)) : undefined),
+	};
 
 	let entity: Entity;
 	switch (type) {
@@ -180,6 +200,8 @@ export function parseEntity(type: EntityType, path: string, fm: Frontmatter | un
 				domain: r.string('domain'),
 				industry: r.string('industry'),
 				size: r.string('size'),
+				address: r.string('address'),
+				taxId: r.string('tax_id'),
 				issues: r.issues,
 			} satisfies Company;
 			break;
@@ -206,6 +228,7 @@ export function parseEntity(type: EntityType, path: string, fm: Frontmatter | un
 				currency: r.string('currency')?.toUpperCase(),
 				expectedClose: r.date('expected_close'),
 				probability,
+				stageHistory: parseStageHistory(fm?.stage_history),
 				issues: r.issues,
 			} satisfies Deal;
 			break;
@@ -222,6 +245,43 @@ export function parseEntity(type: EntityType, path: string, fm: Frontmatter | un
 				issues: r.issues,
 			} satisfies Interaction;
 			break;
+		case 'quote':
+		case 'invoice': {
+			const { items, invalid } = parseLineItems(fm?.items);
+			if (invalid > 0) r.issues.push(`${invalid} line item${invalid === 1 ? ' is' : 's are'} unreadable`);
+			const total = r.number('total');
+			const totals = items.length === 0 && total !== undefined ? { net: total, tax: 0, gross: total } : totalsOf(items);
+			const billing = {
+				...base,
+				number: r.string('number'),
+				company: r.link('company'),
+				contact: r.link('contact'),
+				deal: r.link('deal'),
+				issued: r.date('issued'),
+				currency: r.string('currency')?.toUpperCase(),
+				items,
+				totals,
+			};
+			entity =
+				type === 'quote'
+					? ({
+							...billing,
+							type,
+							status: r.oneOf<QuoteStatus>('status', QUOTE_STATUSES, 'draft'),
+							validUntil: r.date('valid_until'),
+							issues: r.issues,
+						} satisfies Quote)
+					: ({
+							...billing,
+							type,
+							status: r.oneOf<InvoiceStatus>('status', INVOICE_STATUSES, 'draft'),
+							due: r.date('due'),
+							paidOn: r.date('paid_on'),
+							quote: r.link('quote'),
+							issues: r.issues,
+						} satisfies Invoice);
+			break;
+		}
 	}
 	return stripUndefined(entity);
 }

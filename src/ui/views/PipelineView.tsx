@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from 'react';
-import { Menu, Notice } from 'obsidian';
+import { Menu, Notice, Platform } from 'obsidian';
 import { isClosedStage, totalsByCurrency } from '../../core/insights';
 import { formatDate } from '../../core/schema';
 import type { Deal } from '../../core/types';
@@ -8,6 +8,7 @@ import { formatMoney, formatTotals } from '../format';
 import { useCrm } from '../hooks/useCrm';
 import { useOpenNote } from '../hooks/useObsidian';
 import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 import { Icon } from '../components/Icon';
 
 /** A deal with the stage it's shown in (which may be a move not yet written). */
@@ -26,7 +27,7 @@ const DEAL_MIME = 'application/x-abc-deal';
 export function PipelineView() {
 	const crm = useCrm();
 	const { plugin, repo } = usePlugin();
-	const { pipelineStages, defaultCurrency } = plugin.settings;
+	const { pipelineStages, defaultCurrency } = useSettings();
 
 	// Stage changes shown immediately, until the index catches up with the write.
 	const [pending, setPending] = useState<Record<string, string>>({});
@@ -220,7 +221,8 @@ function DealCard({
 	return (
 		<article
 			className="abc-card"
-			draggable
+			// Touch devices can't use HTML drag and drop; the card menu moves deals there.
+			draggable={!Platform.isMobile}
 			tabIndex={0}
 			aria-label={deal.name}
 			onDragStart={(e) => {

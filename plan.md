@@ -80,6 +80,48 @@ summary: Discussed pilot scope
 Meeting notes…
 ```
 
+### Quote — `CRM/Quotes/Q-2026-0003 Acme Inc.md`
+```yaml
+---
+type: crm-quote
+number: Q-2026-0003
+status: sent            # draft | sent | accepted | declined | expired
+company: "[[Acme Inc]]"
+contact: "[[Jane Doe]]"
+deal: "[[Acme - Pilot]]"
+issued: 2026-09-20      # the date it was sent
+valid_until: 2026-10-20
+currency: EUR
+items:
+  - { description: Pilot setup, qty: 1, price: 8000, tax: 19 }
+  - { description: Training (days), qty: 2, price: 2000, tax: 19 }
+created: 2026-09-18
+---
+```
+
+### Invoice — `CRM/Invoices/INV-2026-0007 Acme Inc.md`
+```yaml
+---
+type: crm-invoice
+number: INV-2026-0007
+status: sent            # draft | sent | paid | void  (overdue = sent and past due)
+company: "[[Acme Inc]]"
+contact: "[[Jane Doe]]"
+deal: "[[Acme - Pilot]]"
+quote: "[[Q-2026-0003 Acme Inc]]"
+issued: 2026-09-25
+due: 2026-10-25
+paid_on:                # set by "Mark as paid"
+currency: EUR
+items: [...]            # same shape as quotes
+created: 2026-09-25
+---
+```
+Totals (net, tax, gross) are always calculated from `items`, never stored. A note with no items can give a `total` instead.
+
+### Deal stage history (for lead and win/loss stats)
+Deals get `created` and `stage_history: ["2026-09-20 lead", "2026-09-28 proposal"]`. The plugin appends an entry whenever the stage changes, whether from the board, the panel or a manual frontmatter edit while Obsidian is open. A deal with no history is treated as having entered its current stage on its `created` date (or the file's creation date).
+
 **Design decisions**
 - Relationships are **wikilinks** in frontmatter → Obsidian's link graph/backlinks work for free, and renames are handled by Obsidian.
 - Interactions are separate notes (not appended inside contact notes) so they can link to many contacts/deals and show up in timelines. *Option:* also support logging interactions into the daily note (setting).
@@ -99,6 +141,7 @@ Meeting notes…
 | Drag & drop | Native HTML5 drag and drop plus an Obsidian `Menu` ("Move to …") on each card | No dependency. `@dnd-kit/core` hasn't been updated since 2024 and its successor is still 0.x. Touch devices can't use HTML5 drag and drop, so the card menu covers mobile and keyboard |
 | Tables | Own `DataTable` component | Sorting in ~60 lines; filtering is done by each view. TanStack Table was dropped at M2: v9 replaced the v8 API. Add windowing (e.g. `@tanstack/react-virtual`) when lists get large |
 | Dates | `date-fns` (or Obsidian's bundled `moment`) | Prefer `moment` to avoid extra bundle weight |
+| PDF | `jspdf` + bundled Noto Sans subset (`assets/fonts`, SIL OFL) | Works on desktop and mobile. The font covers Latin alphabets (č ć đ ő ł…), which PDF's built-in fonts can't. `scripts/subset-fonts.sh` rebuilds it. jsPDF's HTML/SVG extras (html2canvas, dompurify, canvg) are kept out of the bundle |
 | Testing | Vitest + React Testing Library; mocked `obsidian` module | |
 | Lint/format | ESLint (`eslint-plugin-obsidianmd`) + Prettier | Obsidian's review bot checks for common issues |
 
@@ -238,8 +281,9 @@ obsidian-crm/
 | 1 ✅ | Core data | Types, schema, `CrmIndex`, `CrmRepository`, settings tab, unit tests |
 | 2 🧪 | MVP UI | Create modals, Contacts table, entity side panel, log interaction → **v0.1** |
 | 3 🧪 | Pipeline & follow-ups | Kanban, dashboard, company view → **v0.2** |
-| 4 | Polish | Mobile layout, quick capture, CSV import/export, custom fields |
-| 5 | Release | README, screenshots, GitHub release workflow, submit to community plugins |
+| 4 🧪 | Polish | Mobile layout, quick capture, CSV import/export, custom fields |
+| 5 🧪 | Invoices, quotes & reports | Quote and invoice notes with line items, numbering, mark sent/paid, convert quote → invoice; deal stage history; Reports view with KPIs and charts (daily / weekly / monthly / quarterly) |
+| 6 | Release | README, screenshots, GitHub release workflow, submit to community plugins |
 
 ---
 
@@ -260,6 +304,32 @@ obsidian-crm/
 - **Closed deals.** A stage named `won` or `lost`, or starting with `closed`, counts as closed. Closed deals are left out of open-pipeline totals, "closing soon" and company rollups.
 - **Dashboard replaces the home view** and keeps its view type (`always-be-closing-home`), so saved workspaces still open it. It shows follow-ups (overdue, today, next 7 days) with Log, Snooze 1 week and Done. It also lists stale contacts (active, no follow-up set, not contacted within `staleAfterDays`, 30 by default) and open deals closing within 30 days.
 - **Company view is a table**: contacts, open deals, open pipeline and last interaction per company. The details panel covers a single company.
+- **Custom fields** are defined per entity type in settings: label, frontmatter key (from the label by default), kind (text, number, date, url, email, tel, select, checkbox or tags), select options, and "show in table" for contacts and companies. They appear in forms, the details panel, CSV import/export and (optionally) table columns. Invalid or clashing keys are ignored and flagged in settings. Entities keep their raw `frontmatter` so custom values can be read.
+- **React reads settings through `useSettings()`.** The plugin keeps an immutable copy of the settings that is replaced on save. The settings tab still edits `plugin.settings` in place.
+- **CSV import is contacts only** (LinkedIn Connections.csv, Google Contacts or any CSV with a header row). The header row is detected after LinkedIn's preamble, and columns are auto-mapped but can be changed. Existing contacts (same email or name) and in-file duplicates are skipped. Missing companies can be created; otherwise the contact gets a `[[Company]]` link to a note that doesn't exist yet.
+- **CSV export covers all four types** and writes `<CRM root>/Exports/<type> <date>.csv`. Columns are frontmatter keys; links are exported as note names and lists joined with `; `.
+- **Quick log** is a fuzzy picker over non-archived contacts and open deals, followed by a short form (kind, summary, notes; links and today's date are filled in).
+- **Editing a multi-link field keeps links that aren't CRM notes** (fixes the M2 data-loss gap).
+- **Mobile:** HTML5 drag is turned off on mobile (cards move through the menu). Phones get stacked form labels, one pipeline column per screen and larger touch targets.
+- **Invoices & quotes (M5).**
+  - Numbering is `<prefix><year>-<4 digits>`, one sequence per year (prefixes `INV-` and `Q-` in settings). The next number is pre-filled and can be edited.
+  - The payment term (30 days) and quote validity (30 days) are settings. The default tax rate is a setting too.
+  - Money stats count only the default currency; the Reports view says how many documents in other currencies were left out.
+- **Reports (M5).** Granularity is daily (last 30 days), weekly (12 weeks, Monday start), monthly (12 months) or quarterly (8 quarters).
+  - KPIs compare the selected range with the range just before it.
+  - Definitions:
+    - **Lead:** a deal entering the first pipeline stage.
+    - **Quote or invoice sent:** a non-draft document, counted by `issued`.
+    - **Revenue paid:** gross of paid invoices, counted by `paid_on`.
+    - **Won / lost:** a deal entering `won` / `lost`.
+    - **Acceptance rate:** accepted ÷ (accepted + declined).
+  - Charts are hand-written SVG using the dataviz reference palette (validated on Obsidian's default surfaces). Every chart has a legend, hover/focus tooltips and a table view.
+- **Invoice and quote PDFs.**
+  - Created with "Create PDF" in the details panel, or the command "Create PDF of this invoice or quote".
+  - Saved next to the note (`INV-2026-0007 Acme Inc.pdf`), replacing an older copy, and opened in a new tab.
+  - The sender block comes from Settings → Your business: name, address, email, phone, tax ID, bank details, payment note and an optional PNG/JPEG logo from the vault. Companies gained `address` (multi-line) and `tax_id` for the recipient block.
+  - Tax is printed per rate. Totals round tax per rate, so the printed lines always add up.
+  - Labels are English for now.
 - **Mixed currencies are never converted.** Totals are shown per currency (e.g. `€62,000 · $5,000`).
 - **The details panel docks itself** in the right sidebar on startup, without taking focus.
 - **Classic settings tab for now.** The declarative settings API needs Obsidian 1.13 and `minAppVersion` is 1.7.2. Revisit when we raise it (lint warns about this).
@@ -272,18 +342,25 @@ obsidian-crm/
 ---
 
 ## 11. Next Steps
-Milestones 2 and 3 are implemented and unit-tested (72 tests), but still need a manual check in `test-vault/`:
-- **M2:** commands, contacts view, details panel, create and log forms.
-- **M3:**
-  - "Open deal pipeline": drag cards between columns, use the ⋯ menu or right-click "Move to", check column totals, and check that a deal with an unknown stage gets its own flagged column.
-  - "Open dashboard" (ribbon icon): follow-up buttons, stale contacts, closing soon.
-  - "Open companies": rollup columns and sorting.
-  - Settings: "Stale after (days)".
+Milestones 2–5 are implemented and unit-tested (128 tests). The Reports charts were checked visually in a light and dark browser preview with sample data. Everything still needs a manual check in `test-vault/` (M4 also on a phone):
+- **M2–M4:** contacts, companies, pipeline, dashboard, details panel, forms, quick log, CSV import/export, custom fields.
+- **M5:**
+  - "New quote" / "New invoice" from a company, contact or deal note (pre-filled, next number)
+  - Editing line items in the form and the details panel
+  - Mark as sent / paid, Accepted / Declined, Create invoice from a quote
+  - Create PDF: fill in Settings → Your business (try a logo), then check it opens in Obsidian's PDF viewer
+  - "Open invoices and quotes"
+  - "Open reports" (all four periods, table toggles, hover and keyboard tooltips)
+  - Overdue invoices on the dashboard
+  - Move a deal on the board and edit a deal's `stage` by hand, then check `stage_history`
 
-Known gaps before tagging v0.1/v0.2:
-- The details panel shows unresolved links as a hint, but editing that field drops them.
-- The entity picker can't create a new company or contact inline.
-- There's no windowing for very large lists yet.
-- Drag and drop is desktop only; on mobile, cards move through the menu.
+Known gaps:
+- PDF labels are English only, and there's one fixed layout.
+- Money stats count the default currency only.
+- Only deals moved from now on get a real stage history; older deals count from their `created` date.
+- The entity picker can't create notes inline.
+- There's no windowing for very large lists.
+- Import covers contacts only.
+- The settings tab uses the classic API (not searchable in Obsidian 1.13+).
 
-Then Milestone 4 (polish): mobile layout pass, quick capture, CSV import/export, custom fields.
+Then Milestone 6 (release): README with screenshots, GitHub release workflow check, community plugin submission (re-check the name and id clash first).

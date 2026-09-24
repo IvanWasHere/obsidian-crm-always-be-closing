@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contextValues } from '../src/obsidian/commands';
+import { contextValues } from '../src/obsidian/prefill';
 import type CrmPlugin from '../src/main';
 import { setup } from './fixtures';
 

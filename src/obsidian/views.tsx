@@ -2,6 +2,8 @@ import { ReactItemView } from './ReactItemView';
 import { DashboardView } from '../ui/views/DashboardView';
 import { PipelineView } from '../ui/views/PipelineView';
 import { CompaniesView } from '../ui/views/CompaniesView';
+import { BillingView } from '../ui/views/BillingView';
+import { ReportsView } from '../ui/views/ReportsView';
 import { ContactsView } from '../ui/views/ContactsView';
 import { EntityPanel } from '../ui/views/EntityPanel';
 
@@ -10,6 +12,8 @@ export const VIEW_TYPE_CONTACTS = 'always-be-closing-contacts';
 export const VIEW_TYPE_ENTITY_PANEL = 'always-be-closing-entity-panel';
 export const VIEW_TYPE_PIPELINE = 'always-be-closing-pipeline';
 export const VIEW_TYPE_COMPANIES = 'always-be-closing-companies';
+export const VIEW_TYPE_BILLING = 'always-be-closing-billing';
+export const VIEW_TYPE_REPORTS = 'always-be-closing-reports';
 
 /** The dashboard. Keeps the original `home` view type so saved workspaces still open it. */
 export class HomeItemView extends ReactItemView {
@@ -69,6 +73,36 @@ export class CompaniesItemView extends ReactItemView {
 	}
 	protected renderView() {
 		return <CompaniesView />;
+	}
+}
+
+export class BillingItemView extends ReactItemView {
+	getViewType() {
+		return VIEW_TYPE_BILLING;
+	}
+	getDisplayText() {
+		return 'Invoices and quotes';
+	}
+	getIcon() {
+		return 'receipt';
+	}
+	protected renderView() {
+		return <BillingView />;
+	}
+}
+
+export class ReportsItemView extends ReactItemView {
+	getViewType() {
+		return VIEW_TYPE_REPORTS;
+	}
+	getDisplayText() {
+		return 'CRM reports';
+	}
+	getIcon() {
+		return 'bar-chart-3';
+	}
+	protected renderView() {
+		return <ReportsView />;
 	}
 }
 

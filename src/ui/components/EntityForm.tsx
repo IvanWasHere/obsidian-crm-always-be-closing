@@ -1,7 +1,8 @@
 import { useId, useState, type SyntheticEvent } from 'react';
-import { FIELDS, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues } from '../../core/fields';
+import { fieldsFor, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues } from '../../core/fields';
 import type { EntityType } from '../../core/types';
 import { FieldInput } from './FieldInput';
+import { useSettings } from '../hooks/useSettings';
 
 interface Props {
 	type: EntityType;
@@ -9,6 +10,8 @@ interface Props {
 	submitLabel: string;
 	/** Adds a textarea whose content becomes the note body. */
 	bodyLabel?: string;
+	/** Only show these fields (by key); other initial values are still submitted. */
+	fields?: string[];
 	onSubmit: (values: FieldValues, body: string) => Promise<void>;
 }
 
@@ -18,7 +21,7 @@ export function validate(specs: FieldSpec[], values: FieldValues): string | null
 		const value = values[spec.key];
 		if (spec.required && isEmptyValue(value)) return `${spec.label} is required.`;
 		if (spec.kind === 'number' && !isEmptyValue(value)) {
-			const n = Number(String(value).replace(/[\s,_]/g, ''));
+			const n = Number((typeof value === 'string' ? value : '').replace(/[\s,_]/g, ''));
 			if (!Number.isFinite(n)) return `${spec.label} should be a number.`;
 			if (spec.key === 'probability' && (n < 0 || n > 1)) return 'Probability should be between 0 and 1.';
 		}
@@ -26,10 +29,11 @@ export function validate(specs: FieldSpec[], values: FieldValues): string | null
 	return null;
 }
 
-/** A form for all fields of an entity type, built from FIELDS. */
-export function EntityForm({ type, initial = {}, submitLabel, bodyLabel, onSubmit }: Props) {
+/** A form for the fields of an entity type, including custom fields from settings. */
+export function EntityForm({ type, initial = {}, submitLabel, bodyLabel, fields, onSubmit }: Props) {
 	const formId = useId();
-	const specs = FIELDS[type];
+	const settings = useSettings();
+	const specs = fieldsFor(type, settings).filter((s) => !fields || fields.includes(s.key));
 	const [values, setValues] = useState<FieldValues>(initial);
 	const [body, setBody] = useState('');
 	const [error, setError] = useState<string | null>(null);

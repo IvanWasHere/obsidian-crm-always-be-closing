@@ -1,23 +1,29 @@
 import { useState, type ReactNode } from 'react';
 import { Notice } from 'obsidian';
 import type { CrmSnapshot } from '../../core/CrmSnapshot';
-import { FIELDS, type FieldSpec, type FieldValue } from '../../core/fields';
+import { fieldsFor, type FieldSpec, type FieldValue } from '../../core/fields';
 import type { Entity, EntityType, Interaction } from '../../core/types';
-import { contextValues } from '../../obsidian/commands';
+import { contextValues } from '../../obsidian/prefill';
 import { openCreateModal, openLogInteractionModal } from '../../obsidian/modals';
 import { readFieldValue, sameValue } from '../fieldValues';
 import { useCrm } from '../hooks/useCrm';
 import { useActiveFilePath } from '../hooks/useObsidian';
 import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 import { FieldInput } from '../components/FieldInput';
 import { Icon } from '../components/Icon';
 import { NoteLink } from '../components/NoteLink';
+import { BillingActions } from '../components/BillingActions';
+import { BillingStatus } from '../components/BillingStatus';
+import { formatMoney } from '../format';
 
 const TYPE_LABELS: Record<EntityType, string> = {
 	contact: 'Contact',
 	company: 'Company',
 	deal: 'Deal',
 	interaction: 'Interaction',
+	quote: 'Quote',
+	invoice: 'Invoice',
 };
 
 const KIND_ICONS: Record<Interaction['kind'], string> = {
@@ -35,7 +41,7 @@ export function EntityPanel() {
 	const entity = path ? crm.get(path) : undefined;
 
 	if (!entity) {
-		return <div className="abc-panel abc-empty">Open a contact, company, deal or interaction note to see its details here.</div>;
+		return <div className="abc-panel abc-empty">Open a CRM note (contact, company, deal, quote…) to see its details here.</div>;
 	}
 	// Remount per note so field drafts never leak between notes.
 	return <EntityDetails key={entity.path} entity={entity} crm={crm} />;
@@ -43,13 +49,23 @@ export function EntityPanel() {
 
 function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 	const { plugin } = usePlugin();
-	const specs = FIELDS[entity.type].filter((s) => s.key !== 'name');
+	const settings = useSettings();
+	const specs = fieldsFor(entity.type, settings).filter((s) => s.key !== 'name');
 
 	return (
 		<div className="abc-panel">
 			<div className="abc-panel-header">
 				<div className="abc-panel-type">{TYPE_LABELS[entity.type]}</div>
 				<h3 className="abc-panel-title">{entity.name}</h3>
+				{(entity.type === 'quote' || entity.type === 'invoice') && (
+					<div className="abc-panel-subtitle">
+						<BillingStatus doc={entity} />
+						<span className="abc-muted">
+							{' · '}
+							{formatMoney(entity.totals.gross, entity.currency ?? settings.defaultCurrency)}
+						</span>
+					</div>
+				)}
 				<div className="abc-panel-actions">
 					{(entity.type === 'contact' || entity.type === 'deal') && (
 						<button onClick={() => openLogInteractionModal(plugin, contextValues(plugin, 'interaction'))}>
@@ -66,6 +82,17 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 							</button>
 						</>
 					)}
+					{(entity.type === 'company' || entity.type === 'contact' || entity.type === 'deal') && (
+						<>
+							<button onClick={() => openCreateModal(plugin, 'quote', contextValues(plugin, 'billing'))}>
+								<Icon name="file-text" /> Quote
+							</button>
+							<button onClick={() => openCreateModal(plugin, 'invoice', contextValues(plugin, 'billing'))}>
+								<Icon name="receipt" /> Invoice
+							</button>
+						</>
+					)}
+					{(entity.type === 'quote' || entity.type === 'invoice') && <BillingActions doc={entity} />}
 				</div>
 			</div>
 
@@ -120,14 +147,15 @@ function PanelField({
 
 	const save = (next: FieldValue) => {
 		if (sameValue(next, value)) return;
-		repo.setField(entity.path, spec, next).catch((err: unknown) => {
+		// Keep links to non-CRM notes: they aren't shown in the picker, so they can't have been removed on purpose.
+		repo.setField(entity.path, spec, next, spec.kind === 'links' ? unresolved : []).catch((err: unknown) => {
 			new Notice(err instanceof Error ? err.message : String(err));
 			setDraft(value);
 		});
 	};
 
 	// Text-like fields save on blur/Enter; pickers, dates and selects save right away.
-	const savesOnCommit = !['link', 'links', 'select', 'date'].includes(spec.kind);
+	const savesOnCommit = !['link', 'links', 'select', 'date', 'checkbox'].includes(spec.kind);
 
 	return (
 		<div className="abc-field">
@@ -145,6 +173,7 @@ function PanelField({
 			{unresolved.length > 0 && (
 				<div className="abc-hint">
 					Not a CRM note: {unresolved.map((l) => `[[${l}]]`).join(', ')}
+					{spec.kind === 'links' ? ' (kept when you edit this field)' : ' (replaced if you pick one)'}
 				</div>
 			)}
 		</div>
@@ -157,6 +186,8 @@ function Related({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 			return (
 				<>
 					<EntityList title="Deals" entities={crm.dealsOf(entity.path)} />
+					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
+					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
 					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
 				</>
 			);
@@ -165,12 +196,23 @@ function Related({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 				<>
 					<EntityList title="Contacts" entities={crm.contactsOf(entity.path)} />
 					<EntityList title="Deals" entities={crm.dealsOf(entity.path)} />
+					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
+					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
 					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
 				</>
 			);
 		case 'deal':
-			return <Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />;
+			return (
+				<>
+					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
+					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
+					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
+				</>
+			);
+		case 'quote':
+			return <EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />;
 		case 'interaction':
+		case 'invoice':
 			return null;
 	}
 }
@@ -186,7 +228,9 @@ function Section({ title, count, children }: { title: string; count: number; chi
 	);
 }
 
-function EntityList({ title, entities }: { title: string; entities: readonly Entity[] }) {
+function EntityList({ title, entities, hideEmpty }: { title: string; entities: readonly Entity[]; hideEmpty?: boolean }) {
+	const { defaultCurrency } = useSettings();
+	if (hideEmpty && entities.length === 0) return null;
 	return (
 		<Section title={title} count={entities.length}>
 			{entities.length === 0 ? (
@@ -198,6 +242,12 @@ function EntityList({ title, entities }: { title: string; entities: readonly Ent
 							<NoteLink path={e.path}>{e.name}</NoteLink>
 							{e.type === 'deal' && <span className="abc-muted"> · {e.stage}</span>}
 							{e.type === 'contact' && e.role && <span className="abc-muted"> · {e.role}</span>}
+							{(e.type === 'quote' || e.type === 'invoice') && (
+								<span className="abc-muted">
+									{' · '}
+									<BillingStatus doc={e} /> · {formatMoney(e.totals.gross, e.currency ?? defaultCurrency)}
+								</span>
+							)}
 						</li>
 					))}
 				</ul>

@@ -67,6 +67,7 @@ describe('parseEntity', () => {
 			lastContacted: '2026-09-20',
 			nextFollowUp: '2026-10-01',
 			issues: [],
+			frontmatter: expect.objectContaining({ name: 'Jane Doe' }) as unknown,
 		});
 	});
 

@@ -38,7 +38,7 @@ export default defineConfig(
 		rules: {
 			'obsidianmd/ui/sentence-case': [
 				'warn',
-				{ enforceCamelCaseLower: true, acronyms: [...DEFAULT_ACRONYMS, 'CRM'] },
+				{ enforceCamelCaseLower: true, acronyms: [...DEFAULT_ACRONYMS, 'CRM', 'PDF'] },
 			],
 		},
 	},

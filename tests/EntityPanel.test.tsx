@@ -14,7 +14,7 @@ function open(ctx: ReturnType<typeof renderWithCrm>, path: string) {
 describe('EntityPanel', () => {
 	it('shows a hint when the active note is not a CRM note', () => {
 		renderWithCrm(<EntityPanel />);
-		expect(screen.getByText(/Open a contact, company, deal or interaction note/)).toBeInTheDocument();
+		expect(screen.getByText(/Open a CRM note/)).toBeInTheDocument();
 	});
 
 	it('shows a contact with its fields, deals and interactions', () => {
@@ -66,6 +66,37 @@ describe('EntityPanel', () => {
 		});
 		open(ctx, 'CRM/Contacts/Bad.md');
 		expect(screen.getByText('status "hot" should be one of: active, cold, archived')).toBeInTheDocument();
-		expect(screen.getByText('Not a CRM note: [[Nowhere]]')).toBeInTheDocument();
+		expect(screen.getByText('Not a CRM note: [[Nowhere]] (replaced if you pick one)')).toBeInTheDocument();
+	});
+
+	it('keeps links to non-CRM notes when editing a multi-link field', async () => {
+		const ctx = renderWithCrm(<EntityPanel />, {
+			...SEED,
+			'CRM/Deals/Mixed.md': { type: 'crm-deal', stage: 'lead', contacts: ['[[Jane Doe]]', '[[Someone Else]]'] },
+		});
+		open(ctx, 'CRM/Deals/Mixed.md');
+		expect(screen.getByText(/\[\[Someone Else\]\] \(kept when you edit this field\)/)).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Remove Jane Doe' }));
+		await waitFor(() =>
+			expect(ctx.app.vault.readNote('CRM/Deals/Mixed.md')?.frontmatter?.contacts).toEqual(['[[Someone Else]]']),
+		);
+	});
+
+	it('shows and edits custom fields', async () => {
+		const ctx = renderWithCrm(<EntityPanel />, {
+			...SEED,
+			'CRM/Contacts/Jane Doe.md': { ...SEED['CRM/Contacts/Jane Doe.md'], linkedin: 'https://linkedin.com/in/jane', vip: true },
+		});
+		ctx.settings.customFields.contact.push(
+			{ key: 'linkedin', label: 'LinkedIn', kind: 'url' },
+			{ key: 'vip', label: 'VIP', kind: 'checkbox' },
+		);
+		open(ctx, JANE);
+		expect(screen.getByLabelText('LinkedIn')).toHaveValue('https://linkedin.com/in/jane');
+		expect(screen.getByLabelText('VIP')).toBeChecked();
+
+		fireEvent.click(screen.getByLabelText('VIP'));
+		await waitFor(() => expect(ctx.app.vault.readNote(JANE)?.frontmatter).not.toHaveProperty('vip'));
 	});
 });

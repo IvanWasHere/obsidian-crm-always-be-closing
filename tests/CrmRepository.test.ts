@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fieldSpec } from '../src/core/fields';
 import { setup } from './fixtures';
+
+// New notes get `created: <today>`; pin today so expectations are exact.
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(new Date('2026-09-25T12:00:00'));
+});
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 
 const JANE = 'CRM/Contacts/Jane Doe.md';
 const MARIA = 'CRM/Contacts/Maria Garcia.md';
@@ -26,6 +36,7 @@ describe('CrmRepository', () => {
 			['email', 'ann@acme.com'],
 			['status', 'active'],
 			['tags', ['lead', 'expo']],
+			['created', '2026-09-25'],
 		]);
 		index.flush();
 		expect(index.getSnapshot().companyOf(file.path)?.path).toBe(ACME);
@@ -62,6 +73,8 @@ describe('CrmRepository', () => {
 			stage: 'lead',
 			value: 5000,
 			currency: 'EUR',
+			created: '2026-09-25',
+			stage_history: ['2026-09-25 lead'],
 		});
 	});
 

@@ -2,12 +2,14 @@ import { useMemo, type ReactNode } from 'react';
 import { Notice } from 'obsidian';
 import { addDays } from '../../core/dates';
 import { closingSoon, followUps, openDeals, staleContacts, totalsByCurrency } from '../../core/insights';
+import { isOverdue } from '../../core/billing';
 import { formatDate } from '../../core/schema';
-import type { Contact, Deal } from '../../core/types';
+import type { Contact, Deal, Invoice } from '../../core/types';
 import { openLogInteractionModal } from '../../obsidian/modals';
 import { formatMoney, formatTotals, relativeDay } from '../format';
 import { useCrm } from '../hooks/useCrm';
 import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 import { Icon } from '../components/Icon';
 import { NoteLink } from '../components/NoteLink';
 
@@ -17,14 +19,20 @@ const CLOSING_WINDOW_DAYS = 30;
 /** Home view: what needs attention today. */
 export function DashboardView() {
 	const crm = useCrm();
-	const { plugin } = usePlugin();
-	const { staleAfterDays, defaultCurrency } = plugin.settings;
+	const { staleAfterDays, defaultCurrency } = useSettings();
 	const today = formatDate(new Date());
 
 	const due = useMemo(() => followUps(crm, today), [crm, today]);
 	const stale = useMemo(() => staleContacts(crm, today, staleAfterDays), [crm, today, staleAfterDays]);
 	const closing = useMemo(() => closingSoon(crm, today, CLOSING_WINDOW_DAYS), [crm, today]);
 	const open = useMemo(() => openDeals(crm), [crm]);
+	const unpaid = crm.all('invoice').filter((i) => i.status === 'sent');
+	const overdue = unpaid.filter((i) => isOverdue(i, today)).sort((a, b) => (a.due ?? '').localeCompare(b.due ?? ''));
+	const outstanding: Record<string, number> = {};
+	for (const i of unpaid) {
+		const c = i.currency ?? defaultCurrency;
+		outstanding[c] = (outstanding[c] ?? 0) + i.totals.gross;
+	}
 
 	const nothingDue = due.overdue.length + due.today.length + due.thisWeek.length === 0;
 
@@ -39,7 +47,18 @@ export function DashboardView() {
 					label="Open pipeline"
 					value={formatTotals(totalsByCurrency(open, defaultCurrency)) || '—'}
 				/>
+				{unpaid.length > 0 && <Stat id="outstanding" label="Outstanding invoices" value={formatTotals(outstanding)} />}
 			</div>
+
+			{overdue.length > 0 && (
+				<Panel title="Overdue invoices" icon="alert-triangle" count={overdue.length}>
+					<ul className="abc-rows">
+						{overdue.map((i) => (
+							<InvoiceRow key={i.path} invoice={i} today={today} defaultCurrency={defaultCurrency} />
+						))}
+					</ul>
+				</Panel>
+			)}
 
 			<Panel title="Follow-ups" icon="bell">
 				{nothingDue && <div className="abc-muted">Nothing due this week.</div>}
@@ -199,6 +218,35 @@ function DealRow({ deal, today, defaultCurrency }: { deal: Deal; today: string; 
 					{' · '}
 					<span className={overdue ? 'abc-overdue' : undefined}>closes {relativeDay(deal.expectedClose!, today)}</span>
 				</div>
+			</div>
+		</li>
+	);
+}
+
+function InvoiceRow({ invoice, today, defaultCurrency }: { invoice: Invoice; today: string; defaultCurrency: string }) {
+	const crm = useCrm();
+	const { repo } = usePlugin();
+	const company = crm.companyOf(invoice.path);
+	return (
+		<li className="abc-row">
+			<div className="abc-row-main">
+				<NoteLink path={invoice.path}>{invoice.name}</NoteLink>
+				{company && <span className="abc-muted"> · {company.name}</span>}
+				<div className="abc-row-detail abc-muted">
+					{formatMoney(invoice.totals.gross, invoice.currency ?? defaultCurrency)} ·{' '}
+					<span className="abc-overdue">due {relativeDay(invoice.due!, today)}</span>
+				</div>
+			</div>
+			<div className="abc-row-actions">
+				<button
+					onClick={() => {
+						repo.markPaid(invoice.path).catch((err: unknown) => {
+							new Notice(err instanceof Error ? err.message : String(err));
+						});
+					}}
+				>
+					Mark paid
+				</button>
 			</div>
 		</li>
 	);

@@ -1,6 +1,7 @@
-import type { FieldSpec, FieldValue } from '../../core/fields';
+import type { FieldSpec, FieldValue, LineItemInput } from '../../core/fields';
+import { LineItemsEditor } from './LineItemsEditor';
 import { EntityPicker } from './EntityPicker';
-import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 
 interface Props {
 	spec: FieldSpec;
@@ -21,7 +22,18 @@ const INPUT_TYPES: Partial<Record<FieldSpec['kind'], string>> = {
 
 /** The input control for one field, chosen by its kind. */
 export function FieldInput({ spec, value, onChange, onCommit, id, autoFocus }: Props) {
-	const { plugin } = usePlugin();
+	const settings = useSettings();
+
+	if (spec.kind === 'items') {
+		return (
+			<LineItemsEditor
+				id={id}
+				value={Array.isArray(value) ? (value as LineItemInput[]) : []}
+				onChange={onChange}
+				onCommit={onCommit}
+			/>
+		);
+	}
 
 	if (spec.kind === 'link' || spec.kind === 'links') {
 		return (
@@ -29,7 +41,7 @@ export function FieldInput({ spec, value, onChange, onCommit, id, autoFocus }: P
 				id={id}
 				type={spec.target!}
 				multiple={spec.kind === 'links'}
-				value={Array.isArray(value) ? value : []}
+				value={Array.isArray(value) ? (value as string[]) : []}
 				onChange={onChange}
 				placeholder={spec.kind === 'links' ? 'Add…' : 'Search…'}
 				autoFocus={autoFocus}
@@ -37,10 +49,40 @@ export function FieldInput({ spec, value, onChange, onCommit, id, autoFocus }: P
 		);
 	}
 
-	const text = Array.isArray(value) ? value.join(', ') : (value ?? '');
+	// Links and line items were handled above; what's left is text (tags may arrive as a list).
+	const text = Array.isArray(value)
+		? value.filter((v): v is string => typeof v === 'string').join(', ')
+		: (value ?? '');
+
+	if (spec.kind === 'multiline') {
+		return (
+			<textarea
+				id={id}
+				rows={3}
+				placeholder={spec.placeholder}
+				autoFocus={autoFocus}
+				value={text}
+				onChange={(e) => onChange(e.target.value)}
+				onBlur={onCommit}
+			/>
+		);
+	}
+
+	if (spec.kind === 'checkbox') {
+		return (
+			<input
+				id={id}
+				type="checkbox"
+				className="abc-checkbox"
+				checked={text === 'true'}
+				onChange={(e) => onChange(e.target.checked ? 'true' : '')}
+				autoFocus={autoFocus}
+			/>
+		);
+	}
 
 	if (spec.kind === 'select') {
-		const options = spec.options?.(plugin.settings) ?? [];
+		const options = spec.options?.(settings) ?? [];
 		return (
 			<select id={id} className="dropdown" value={text} onChange={(e) => onChange(e.target.value)} autoFocus={autoFocus}>
 				{!spec.required && <option value="">—</option>}

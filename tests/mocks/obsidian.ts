@@ -36,6 +36,8 @@ export abstract class TAbstractFile {
 }
 
 export class TFile extends TAbstractFile {
+	/** ctime 0 means "unknown" to the index, so tests control `created` via frontmatter. */
+	stat = { ctime: 0, mtime: 0, size: 0 };
 	get basename() {
 		return this.name.replace(/\.[^.]*$/, '');
 	}
@@ -81,6 +83,35 @@ export class Vault extends Events {
 	async create(path: string, content: string) {
 		if (this.notes.has(path)) throw new Error('File already exists.');
 		return this.addNote(path, parseContent(content).frontmatter, parseContent(content).body);
+	}
+
+	getFileByPath(path: string): TFile | null {
+		return this.notes.get(path)?.file ?? this.binaries.get(path)?.file ?? null;
+	}
+
+	async modify(file: TFile, content: string) {
+		const note = this.notes.get(file.path)!;
+		Object.assign(note, parseContent(content));
+		this.app.metadataCache.trigger('changed', file);
+	}
+
+	/** Binary files (PDFs, images), kept apart from notes. */
+	binaries = new Map<string, { file: TFile; data: ArrayBuffer }>();
+
+	async readBinary(file: TFile): Promise<ArrayBuffer> {
+		return this.binaries.get(file.path)!.data;
+	}
+
+	async createBinary(path: string, data: ArrayBuffer) {
+		if (this.binaries.has(path) || this.notes.has(path)) throw new Error('File already exists.');
+		const file = new TFile(path);
+		this.binaries.set(path, { file, data });
+		this.trigger('create', file);
+		return file;
+	}
+
+	async modifyBinary(file: TFile, data: ArrayBuffer) {
+		this.binaries.get(file.path)!.data = data;
 	}
 
 	async createFolder(path: string) {
@@ -272,10 +303,6 @@ export class Menu {
 	}
 }
 
-export class Plugin {}
-export class ItemView {}
-export class PluginSettingTab {}
-export class Setting {}
 export class Modal {
 	constructor(public app: App) {}
 	setTitle() {
@@ -284,6 +311,22 @@ export class Modal {
 	open() {}
 	close() {}
 }
+
+export const Platform = { isMobile: false, isDesktop: true, isPhone: false };
+
+export class SuggestModal<T> extends Modal {
+	setPlaceholder() {}
+	getSuggestions(_query: string): T[] {
+		return [];
+	}
+}
+
+export class FuzzySuggestModal<T> extends SuggestModal<T> {}
+
+export class Plugin {}
+export class ItemView {}
+export class PluginSettingTab {}
+export class Setting {}
 
 export class Notice {
 	/** Messages shown so far, for assertions. */

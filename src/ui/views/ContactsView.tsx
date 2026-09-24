@@ -5,9 +5,12 @@ import { openCreateModal } from '../../obsidian/modals';
 import { useCrm } from '../hooks/useCrm';
 import { useOpenNote } from '../hooks/useObsidian';
 import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 import { DataTable, type Column } from '../components/DataTable';
 import { Icon } from '../components/Icon';
 import { NoteLink } from '../components/NoteLink';
+import { customColumns } from '../components/customColumns';
+import { fieldsFor } from '../../core/fields';
 
 interface Row {
 	contact: Contact;
@@ -44,6 +47,7 @@ function matchesSearch({ contact, companyName }: Row, query: string) {
 export function ContactsView() {
 	const crm = useCrm();
 	const { plugin } = usePlugin();
+	const settings = useSettings();
 	const openNote = useOpenNote();
 	const [search, setSearch] = useState('');
 	const [status, setStatus] = useState<StatusFilter>('open');
@@ -117,8 +121,9 @@ export function ContactsView() {
 					</span>
 				),
 			},
+			...customColumns<Row>(fieldsFor('contact', settings), (r) => r.contact),
 		],
-		[today],
+		[today, settings],
 	);
 
 	return (

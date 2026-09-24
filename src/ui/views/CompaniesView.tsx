@@ -6,8 +6,11 @@ import { formatTotals } from '../format';
 import { useCrm } from '../hooks/useCrm';
 import { useOpenNote } from '../hooks/useObsidian';
 import { usePlugin } from '../hooks/usePlugin';
+import { useSettings } from '../hooks/useSettings';
 import { DataTable, type Column } from '../components/DataTable';
 import { Icon } from '../components/Icon';
+import { customColumns } from '../components/customColumns';
+import { fieldsFor } from '../../core/fields';
 
 interface Row {
 	company: Company;
@@ -32,7 +35,8 @@ export function CompaniesView() {
 	const { plugin } = usePlugin();
 	const openNote = useOpenNote();
 	const [search, setSearch] = useState('');
-	const { defaultCurrency } = plugin.settings;
+	const settings = useSettings();
+	const { defaultCurrency } = settings;
 
 	const rows = useMemo<Row[]>(
 		() =>
@@ -94,8 +98,9 @@ export function CompaniesView() {
 					</span>
 				),
 			},
+			...customColumns<Row>(fieldsFor('company', settings), (r) => r.company),
 		],
-		[],
+		[settings],
 	);
 
 	return (

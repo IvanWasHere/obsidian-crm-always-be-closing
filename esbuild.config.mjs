@@ -50,8 +50,14 @@ const context = await esbuild.context({
 		'@lezer/common',
 		'@lezer/highlight',
 		'@lezer/lr',
+		// jsPDF loads these only for its html()/SVG features, which the plugin doesn't use.
+		'html2canvas',
+		'dompurify',
+		'canvg',
 		...builtinModules,
 	],
+	// Fonts for PDFs are inlined as base64 strings (see src/pdf/fonts.ts).
+	loader: { '.ttf': 'base64' },
 	define: {
 		'process.env.NODE_ENV': JSON.stringify(prod ? 'production' : 'development'),
 	},

@@ -548,3 +548,539 @@
 	color: var(--text-normal);
 	font-weight: var(--font-semibold);
 }
+
+/* ---------- Import / suggestions / custom fields ---------- */
+
+.abc-import {
+	display: grid;
+	gap: var(--size-4-3);
+}
+
+.abc-import p {
+	margin: 0;
+}
+
+.abc-mapping {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-ui-small);
+}
+
+.abc-mapping th {
+	text-align: left;
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.abc-mapping td,
+.abc-mapping th {
+	padding: var(--size-2-2) var(--size-4-2) var(--size-2-2) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.abc-mapping td:last-child {
+	max-width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.abc-checkbox-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.abc-import-summary {
+	font-weight: var(--font-medium);
+}
+
+.abc-suggestion-note {
+	display: block;
+	color: var(--text-muted);
+}
+
+.abc-checkbox {
+	justify-self: start;
+	width: auto;
+}
+
+.abc-custom-field .setting-item-description.mod-warning {
+	color: var(--text-warning);
+}
+
+/* ---------- Mobile ---------- */
+
+/* Forms stack label above input on phones. */
+.is-phone .abc-form {
+	grid-template-columns: 1fr;
+	gap: var(--size-2-2);
+}
+
+.is-phone .abc-form-row label {
+	margin-top: var(--size-4-2);
+}
+
+/* Search gets its own line; buttons wrap under it. */
+.is-phone .abc-search {
+	flex-basis: 100%;
+}
+
+/* One pipeline column per screen, with the next one peeking in. */
+.is-phone .abc-column {
+	flex-basis: 85%;
+}
+
+.is-phone .abc-dashboard,
+.is-phone .abc-list-view,
+.is-phone .abc-pipeline {
+	padding-left: var(--size-4-2);
+	padding-right: var(--size-4-2);
+}
+
+/* Larger touch targets. */
+.is-mobile .abc-chip-remove,
+.is-mobile .abc-card-menu {
+	min-width: 32px;
+	min-height: 32px;
+}
+
+.is-mobile .abc-picker-list li {
+	padding: var(--size-4-2) var(--size-4-3);
+}
+
+.is-phone .abc-mapping td:last-child,
+.is-phone .abc-mapping th:last-child {
+	display: none;
+}
+
+/* ---------- Chart palette ----------
+ * Categorical slots from the dataviz reference palette, validated (CVD and
+ * normal-vision separation) against Obsidian's default surfaces: #ffffff light,
+ * #1e1e1e dark. Slots are assigned per series in fixed order, never by rank.
+ * Light slots 3–5 are under 3:1 contrast, so every chart has a table view.
+ */
+body {
+	--abc-slot-1: #2a78d6;
+	--abc-slot-2: #eb6834;
+	--abc-slot-3: #1baf7a;
+	--abc-slot-4: #eda100;
+	--abc-slot-5: #e87ba4;
+}
+
+body.theme-dark {
+	--abc-slot-1: #3987e5;
+	--abc-slot-2: #d95926;
+	--abc-slot-3: #199e70;
+	--abc-slot-4: #c98500;
+	--abc-slot-5: #d55181;
+}
+
+.abc-slot-1 { --abc-series: var(--abc-slot-1); }
+.abc-slot-2 { --abc-series: var(--abc-slot-2); }
+.abc-slot-3 { --abc-series: var(--abc-slot-3); }
+.abc-slot-4 { --abc-series: var(--abc-slot-4); }
+.abc-slot-5 { --abc-series: var(--abc-slot-5); }
+
+/* ---------- Reports ---------- */
+
+.abc-reports {
+	padding: var(--size-4-2) var(--size-4-4) var(--size-4-8);
+	container-type: inline-size;
+}
+
+.abc-segmented {
+	display: inline-flex;
+	padding: 2px;
+	gap: 2px;
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-hover);
+}
+
+.abc-segmented button {
+	box-shadow: none;
+	background: transparent;
+	font-size: var(--font-ui-small);
+	padding: var(--size-2-2) var(--size-4-3);
+	height: auto;
+}
+
+.abc-segmented button.is-active {
+	background: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	font-weight: var(--font-semibold);
+}
+
+.abc-kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.abc-kpis-now .abc-stat {
+	background: var(--background-primary);
+}
+
+.abc-stat.is-warning .abc-stat-label {
+	color: var(--text-warning);
+}
+
+.abc-stat-delta {
+	margin-top: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.abc-stat-delta.is-good {
+	color: var(--text-success);
+}
+
+.abc-stat-delta.is-bad {
+	color: var(--text-error);
+}
+
+.abc-stat-delta.is-flat {
+	color: var(--text-muted);
+}
+
+.abc-reports-note {
+	font-size: var(--font-ui-small);
+}
+
+.abc-charts {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: var(--size-4-4);
+	margin-top: var(--size-4-4);
+}
+
+@container (min-width: 900px) {
+	.abc-charts {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.abc-chart-card {
+	margin: 0;
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	min-width: 0;
+}
+
+.abc-chart-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.abc-chart-title {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.abc-chart-subtitle {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.abc-chart-toggle {
+	font-size: var(--font-ui-smaller);
+	height: auto;
+	padding: var(--size-2-1) var(--size-4-2);
+}
+
+.abc-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2) var(--size-4-3);
+	margin: 0 0 var(--size-4-2);
+	padding: 0;
+	list-style: none;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.abc-legend li {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-3);
+}
+
+.abc-legend-key {
+	display: inline-block;
+	background: var(--abc-series);
+}
+
+/* The legend key mirrors the mark: a rect for bars, a short line for lines. */
+.abc-legend-rect {
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+}
+
+.abc-legend-line {
+	width: 14px;
+	height: 2px;
+	border-radius: 1px;
+}
+
+.abc-chart-plot {
+	position: relative;
+	width: 100%;
+}
+
+.abc-chart-plot svg {
+	display: block;
+	overflow: visible;
+}
+
+.abc-chart-plot svg:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}
+
+.abc-grid {
+	stroke: var(--background-modifier-border);
+	stroke-width: 1;
+	shape-rendering: crispEdges;
+}
+
+.abc-baseline {
+	stroke: var(--text-faint);
+	stroke-width: 1;
+	shape-rendering: crispEdges;
+}
+
+.abc-axis-label {
+	fill: var(--text-muted);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.abc-bar-label {
+	text-transform: capitalize;
+	fill: var(--text-normal);
+}
+
+.abc-value-label {
+	fill: var(--text-muted);
+	font-size: 11px;
+}
+
+.abc-bar {
+	fill: var(--abc-series);
+}
+
+.abc-line {
+	fill: none;
+	stroke: var(--abc-series);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+
+/* Markers carry a 2px ring in the surface color so they stay legible over lines. */
+.abc-marker {
+	fill: var(--abc-series);
+	stroke: var(--background-primary);
+	stroke-width: 2;
+}
+
+.abc-crosshair {
+	stroke: var(--text-faint);
+	stroke-width: 1;
+	shape-rendering: crispEdges;
+}
+
+.abc-hover-band {
+	fill: var(--background-modifier-hover);
+}
+
+.abc-tooltip {
+	position: absolute;
+	top: 0;
+	z-index: var(--layer-tooltip);
+	pointer-events: none;
+	min-width: 140px;
+	padding: var(--size-4-2);
+	border-radius: var(--radius-m);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-smaller);
+}
+
+.abc-tooltip-title {
+	color: var(--text-muted);
+	margin-bottom: var(--size-2-2);
+}
+
+.abc-tooltip-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-3);
+}
+
+.abc-tooltip-row strong {
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+}
+
+.abc-tooltip-key {
+	width: 12px;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--abc-series, var(--text-faint));
+}
+
+.abc-chart-table {
+	max-height: 280px;
+	overflow: auto;
+	font-size: var(--font-ui-small);
+}
+
+.abc-chart-table table,
+.abc-items table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.abc-chart-table th,
+.abc-chart-table td {
+	padding: var(--size-2-2) var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+	text-align: left;
+}
+
+.abc-num,
+.abc-chart-table .abc-num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Invoices & quotes ---------- */
+
+.abc-doc-status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	font-size: var(--font-ui-smaller);
+	text-transform: capitalize;
+	color: var(--text-muted);
+}
+
+.abc-doc-status-paid,
+.abc-doc-status-accepted {
+	color: var(--text-success);
+}
+
+.abc-doc-status-overdue,
+.abc-doc-status-declined {
+	color: var(--text-error);
+}
+
+.abc-doc-status-sent {
+	color: var(--text-accent);
+}
+
+.abc-billing-summary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-4);
+	margin-bottom: var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.abc-billing-summary strong {
+	color: var(--text-normal);
+}
+
+.abc-panel-subtitle {
+	margin: calc(var(--size-4-1) * -1) 0 var(--size-4-2);
+}
+
+.abc-items {
+	grid-column: 1 / -1;
+	min-width: 0;
+	overflow-x: auto;
+}
+
+.abc-form-row .abc-items {
+	margin-top: var(--size-2-2);
+}
+
+.abc-items th {
+	text-align: left;
+	font-weight: var(--font-medium);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	padding: 0 var(--size-2-2) var(--size-2-2);
+}
+
+.abc-items td {
+	padding: var(--size-2-1);
+}
+
+.abc-items input {
+	width: 100%;
+	min-width: 56px;
+}
+
+.abc-items td:first-child input {
+	min-width: 140px;
+}
+
+.abc-items-footer {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}
+
+.abc-totals {
+	display: grid;
+	grid-template-columns: auto auto;
+	gap: var(--size-2-1) var(--size-4-3);
+	margin: 0;
+	font-size: var(--font-ui-small);
+}
+
+.abc-totals dt {
+	color: var(--text-muted);
+}
+
+.abc-totals dd {
+	margin: 0;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.abc-total-gross {
+	font-weight: var(--font-semibold);
+}
+
+.abc-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.is-phone .abc-reports {
+	padding-left: var(--size-4-2);
+	padding-right: var(--size-4-2);
+}

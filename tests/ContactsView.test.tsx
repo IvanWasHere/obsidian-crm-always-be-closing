@@ -61,4 +61,36 @@ describe('ContactsView', () => {
 		});
 		expect(screen.getByText('2000-01-01')).toHaveClass('abc-overdue');
 	});
+
+	it('shows custom fields marked "show in table" as sortable columns', () => {
+		renderWithCrm(
+			<ContactsView />,
+			{
+				...SEED,
+				'CRM/Contacts/Jane Doe.md': { ...SEED['CRM/Contacts/Jane Doe.md'], score: 7 },
+				'CRM/Contacts/John Smith.md': { ...SEED['CRM/Contacts/John Smith.md'], score: 12 },
+			},
+			{
+				customFields: {
+					contact: [
+						{ key: 'score', label: 'Score', kind: 'number', showInTable: true },
+						{ key: 'hidden', label: 'Hidden', kind: 'text' },
+					],
+					company: [],
+					deal: [],
+					interaction: [],
+					quote: [],
+					invoice: [],
+				},
+			},
+		);
+		expect(screen.getByRole('button', { name: 'Score' })).toBeInTheDocument();
+		expect(screen.queryByRole('columnheader', { name: 'Hidden' })).toBeNull();
+
+		// Numeric sort (7 before 12), empty last.
+		fireEvent.click(screen.getByRole('button', { name: 'Score' }));
+		expect(names()).toEqual(['Jane Doe', 'John Smith', 'Maria Garcia']);
+		fireEvent.click(screen.getByRole('button', { name: /Score/ }));
+		expect(names()).toEqual(['John Smith', 'Jane Doe', 'Maria Garcia']);
+	});
 });

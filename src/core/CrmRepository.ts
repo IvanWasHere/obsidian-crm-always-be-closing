@@ -1,9 +1,19 @@
 import { TFile, normalizePath, stringifyYaml, type App } from 'obsidian';
 import type { CrmSettings } from '../settings';
-import { FIELDS, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues } from './fields';
+import type { CrmSnapshot } from './CrmSnapshot';
+import { formatStageChange, parseStageHistory } from './billing';
+import { addDays } from './dates';
+import { fieldsFor, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues, type LineItemInput } from './fields';
 import { formatDate, type Frontmatter } from './schema';
 import { interactionTitle, sanitizeFileName } from './templates';
-import { INTERACTION_KINDS, TYPE_TAGS, type EntityType, type InteractionKind } from './types';
+import {
+	INTERACTION_KINDS,
+	TYPE_TAGS,
+	type EntityType,
+	type InteractionKind,
+	type QuoteStatus,
+	type Quote,
+} from './types';
 
 /** Frontmatter edits: `null` or `undefined` removes the key. */
 export type FrontmatterPatch = Record<string, unknown>;
@@ -15,7 +25,30 @@ const FOLDER_KEYS: Record<EntityType, keyof CrmSettings['folders']> = {
 	company: 'companies',
 	deal: 'deals',
 	interaction: 'interactions',
+	quote: 'quotes',
+	invoice: 'invoices',
 };
+
+const text = (value: FieldValue | undefined) => (typeof value === 'string' ? value.trim() : '');
+/** Vault paths from a `link`/`links` value. */
+const paths = (value: FieldValue | undefined) =>
+	Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+const today = () => formatDate(new Date());
+
+/**
+ * Appends a stage change to `stage_history` unless it's already the latest entry.
+ * With no history yet, `baseline` (the stage the deal was in before, and since when)
+ * is recorded first so the earlier stage isn't lost.
+ */
+function appendStage(fm: Frontmatter, stage: string, date: string, baseline?: { stage: string; since?: string }) {
+	const history = parseStageHistory(fm.stage_history);
+	if (history[history.length - 1]?.stage === stage) return;
+	if (history.length === 0 && baseline?.since && baseline.stage !== stage) {
+		history.push({ date: baseline.since, stage: baseline.stage });
+	}
+	history.push({ date, stage });
+	fm.stage_history = history.map(formatStageChange);
+}
 
 /**
  * The only place that writes CRM data to the vault. New notes are created
@@ -31,11 +64,16 @@ export class CrmRepository {
 		private getSettings: () => CrmSettings,
 	) {}
 
-	/** Creates a contact, company or deal note. `name` is required. */
+	/**
+	 * Creates a contact, company, deal, quote or invoice note. Contacts,
+	 * companies and deals need a `name`; quotes and invoices a `number`
+	 * (their file is named `<number> <company>`).
+	 */
 	async createEntity(type: CreatableType, values: FieldValues, body = ''): Promise<TFile> {
 		const settings = this.getSettings();
-		const name = typeof values.name === 'string' ? values.name.trim() : '';
-		if (!name) throw new Error('Name is required');
+		const isBilling = type === 'quote' || type === 'invoice';
+		const title = text(isBilling ? values.number : values.name);
+		if (!title) throw new Error(isBilling ? 'Number is required' : 'Name is required');
 
 		const defaults: FieldValues = {};
 		if (type === 'contact') defaults.status = 'active';
@@ -43,9 +81,19 @@ export class CrmRepository {
 			defaults.stage = settings.pipelineStages[0] ?? 'lead';
 			if (!isEmptyValue(values.value)) defaults.currency = settings.defaultCurrency;
 		}
+		if (isBilling) {
+			defaults.status = 'draft';
+			defaults.currency = settings.defaultCurrency;
+		}
 
-		const path = await this.newPath(settings.folders[FOLDER_KEYS[type]], name);
+		const companyPath = paths(values.company)[0];
+		const company = isBilling && companyPath ? this.fileAt(companyPath)?.basename : undefined;
+		const path = await this.newPath(settings.folders[FOLDER_KEYS[type]], company ? `${title} ${company}` : title);
+
 		const fm = this.frontmatter(type, { ...defaults, ...withoutEmpty(values) }, path);
+		const date = today();
+		fm.created = date;
+		if (type === 'deal') appendStage(fm, fm.stage as string, date);
 		return this.createNote(path, fm, body);
 	}
 
@@ -58,7 +106,7 @@ export class CrmRepository {
 			? (values.kind as InteractionKind)
 			: 'note';
 		const date = typeof values.date === 'string' && values.date ? values.date : formatDate(new Date());
-		const contactPaths = Array.isArray(values.contacts) ? values.contacts : [];
+		const contactPaths = paths(values.contacts);
 		const names = contactPaths.map((p) => this.fileAt(p)?.basename ?? '').filter(Boolean);
 
 		const path = await this.newPath(this.getSettings().folders.interactions, interactionTitle(kind, date, names));
@@ -78,21 +126,37 @@ export class CrmRepository {
 		return file;
 	}
 
-	/** Sets one field from a UI value; an empty value removes the key. */
-	setField(path: string, spec: FieldSpec, value: FieldValue | undefined): Promise<void> {
+	/**
+	 * Sets one field from a UI value; an empty value removes the key.
+	 * For `links` fields, `keepLinks` are link targets to keep as they are
+	 * (links the UI can't show because they don't point at a CRM note).
+	 */
+	setField(path: string, spec: FieldSpec, value: FieldValue | undefined, keepLinks: string[] = []): Promise<void> {
+		if (spec.kind === 'links' && keepLinks.length > 0) {
+			const links = [...(this.toFrontmatter(spec, value ?? [], path) as string[]), ...keepLinks.map((l) => `[[${l}]]`)];
+			return this.updateFields(path, { [spec.key]: links });
+		}
 		return this.updateFields(path, {
 			[spec.key]: isEmptyValue(value) ? null : this.toFrontmatter(spec, value!, path),
 		});
 	}
 
-	/** Sets or removes raw frontmatter fields (snake_case keys, as stored). */
+	/**
+	 * Sets or removes raw frontmatter fields (snake_case keys, as stored).
+	 * Changing a deal's `stage` also appends to its `stage_history`.
+	 */
 	async updateFields(path: string, patch: FrontmatterPatch): Promise<void> {
 		const file = this.fileAt(path);
 		if (!file) throw new Error(`Note not found: ${path}`);
 		await this.app.fileManager.processFrontMatter(file, (fm: Frontmatter) => {
+			const previousStage = fm.stage;
 			for (const [key, value] of Object.entries(patch)) {
 				if (value === undefined || value === null) delete fm[key];
 				else fm[key] = value;
+			}
+			if (fm.type === TYPE_TAGS.deal && typeof patch.stage === 'string') {
+				const since = typeof fm.created === 'string' ? fm.created : undefined;
+				appendStage(fm, patch.stage, today(), typeof previousStage === 'string' ? { stage: previousStage, since } : undefined);
 			}
 		});
 	}
@@ -101,19 +165,92 @@ export class CrmRepository {
 		return this.updateFields(path, { stage });
 	}
 
-	/** Frontmatter in FIELDS order, with `type` first. */
+	/**
+	 * Records a stage change made outside the plugin (e.g. by editing
+	 * frontmatter). `previous` is what the index knew before the edit.
+	 */
+	async recordStage(path: string, stage: string, previous?: { stage: string; since?: string }): Promise<void> {
+		const file = this.fileAt(path);
+		if (!file) return;
+		await this.app.fileManager.processFrontMatter(file, (fm: Frontmatter) => {
+			if (fm.stage === stage) appendStage(fm, stage, today(), previous);
+		});
+	}
+
+	/**
+	 * Marks a quote or invoice as sent. Fills in a missing issue date (today)
+	 * and a missing due date / valid-until date from the billing settings.
+	 */
+	async markSent(path: string): Promise<void> {
+		const { billing } = this.getSettings();
+		await this.processFile(path, (fm) => {
+			fm.status = 'sent';
+			const issued = typeof fm.issued === 'string' && fm.issued ? fm.issued : today();
+			fm.issued = issued;
+			if (fm.type === TYPE_TAGS.invoice && !fm.due) fm.due = addDays(issued, billing.paymentTermsDays);
+			if (fm.type === TYPE_TAGS.quote && !fm.valid_until) fm.valid_until = addDays(issued, billing.quoteValidityDays);
+		});
+	}
+
+	async markPaid(path: string, date = today()): Promise<void> {
+		await this.processFile(path, (fm) => {
+			fm.status = 'paid';
+			fm.paid_on = date;
+		});
+	}
+
+	setQuoteStatus(path: string, status: QuoteStatus): Promise<void> {
+		return this.updateFields(path, { status });
+	}
+
+	/**
+	 * Creates a draft invoice from a quote (same company, contact, deal,
+	 * currency and line items, linked back to the quote) and marks the
+	 * quote accepted if it was still open.
+	 */
+	async convertQuoteToInvoice(quote: Quote, crm: CrmSnapshot, number: string): Promise<TFile> {
+		const { billing } = this.getSettings();
+		const issued = today();
+		const file = await this.createEntity('invoice', {
+			number,
+			company: crm.linkedPaths(quote.path, 'company'),
+			contact: crm.linkedPaths(quote.path, 'contact'),
+			deal: crm.linkedPaths(quote.path, 'deal'),
+			quote: [quote.path],
+			issued,
+			due: addDays(issued, billing.paymentTermsDays),
+			currency: quote.currency,
+			items: quote.items.map((i) => ({
+				description: i.description,
+				qty: String(i.qty),
+				price: String(i.price),
+				tax: String(i.tax),
+			})),
+		});
+		if (quote.status === 'draft' || quote.status === 'sent') await this.setQuoteStatus(quote.path, 'accepted');
+		return file;
+	}
+
+	private async processFile(path: string, fn: (fm: Frontmatter) => void): Promise<void> {
+		const file = this.fileAt(path);
+		if (!file) throw new Error(`Note not found: ${path}`);
+		await this.app.fileManager.processFrontMatter(file, fn);
+	}
+
+	/** Frontmatter in field order (built-in, then custom), with `type` first. */
 	private frontmatter(type: EntityType, values: FieldValues, sourcePath: string): Frontmatter {
 		const fm: Frontmatter = { type: TYPE_TAGS[type] };
-		for (const spec of FIELDS[type]) {
+		for (const spec of fieldsFor(type, this.getSettings())) {
 			const value = values[spec.key];
 			if (!isEmptyValue(value)) fm[spec.key] = this.toFrontmatter(spec, value!, sourcePath);
 		}
 		return fm;
 	}
 
-	/** Converts a UI value to what gets stored: numbers, tag lists, wikilinks. */
+	/** Converts a UI value to what gets stored: numbers, tag lists, wikilinks, line items. */
 	private toFrontmatter(spec: FieldSpec, value: FieldValue, sourcePath: string): unknown {
-		const list = Array.isArray(value) ? value : [value];
+		if (spec.kind === 'items') return toLineItems(value as LineItemInput[]);
+		const list = (Array.isArray(value) ? value : [value]) as string[];
 		switch (spec.kind) {
 			case 'link':
 				return this.link(list[0]!, sourcePath);
@@ -124,6 +261,8 @@ export class CrmRepository {
 					.flatMap((t) => t.split(','))
 					.map((t) => t.trim().replace(/^#/, ''))
 					.filter(Boolean);
+			case 'checkbox':
+				return list[0] === 'true';
 			case 'number': {
 				const n = Number(String(list[0]).replace(/[\s,_]/g, ''));
 				if (!Number.isFinite(n)) throw new Error(`${spec.label} should be a number`);
@@ -165,6 +304,24 @@ export class CrmRepository {
 		}
 		return path;
 	}
+}
+
+/** Line items as stored: numbers parsed, blank rows dropped. Throws on a non-numeric cell. */
+function toLineItems(rows: LineItemInput[]): { description: string; qty: number; price: number; tax: number }[] {
+	const num = (value: string, label: string, row: number, fallback: number) => {
+		if (value.trim() === '') return fallback;
+		const n = Number(value.replace(/[\s_]/g, '').replace(',', '.'));
+		if (!Number.isFinite(n)) throw new Error(`Line ${row}: ${label} should be a number`);
+		return n;
+	};
+	return rows
+		.filter((r) => r.description.trim() !== '' || r.price.trim() !== '')
+		.map((r, i) => ({
+			description: r.description.trim(),
+			qty: num(r.qty, 'quantity', i + 1, 1),
+			price: num(r.price, 'price', i + 1, 0),
+			tax: num(r.tax, 'tax', i + 1, 0),
+		}));
 }
 
 function withoutEmpty(values: FieldValues): FieldValues {

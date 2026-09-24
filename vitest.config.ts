@@ -1,7 +1,19 @@
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 export default defineConfig({
+	plugins: [
+		{
+			// Match esbuild's base64 loader for fonts.
+			name: 'ttf-base64',
+			// Run before Vite's asset plugin, which would otherwise turn fonts into URLs.
+			enforce: 'pre',
+			load(id) {
+				if (id.endsWith('.ttf')) return `export default ${JSON.stringify(readFileSync(id).toString('base64'))};`;
+			},
+		},
+	],
 	resolve: {
 		alias: {
 			// The real `obsidian` package only ships type definitions.

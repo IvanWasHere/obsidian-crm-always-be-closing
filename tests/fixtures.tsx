@@ -78,13 +78,22 @@ export function setup(notes: Record<string, Record<string, unknown> | undefined>
 }
 
 /** Renders UI inside the plugin context, backed by a mock vault with `notes`. */
-export function renderWithCrm(ui: ReactElement, notes?: Record<string, Record<string, unknown> | undefined>) {
-	const ctx = setup(notes);
-	const plugin = { app: ctx.app, settings: ctx.settings, index: ctx.index, repo: ctx.repo } as unknown as CrmPlugin;
-	const result = render(
-		<PluginContext.Provider value={{ app: ctx.app as unknown as ObsidianApp, plugin, index: ctx.index, repo: ctx.repo }}>
-			{ui}
-		</PluginContext.Provider>,
-	);
-	return { ...ctx, plugin, ...result };
+export function renderWithCrm(
+	ui: ReactElement,
+	notes?: Record<string, Record<string, unknown> | undefined>,
+	saved?: Partial<CrmSettings>,
+) {
+	const ctx = setup(notes, saved);
+	const plugin = {
+		app: ctx.app,
+		settings: ctx.settings,
+		index: ctx.index,
+		repo: ctx.repo,
+		subscribeSettings: () => () => {},
+		getSettingsSnapshot: () => ctx.settings,
+	} as unknown as CrmPlugin;
+	const value = { app: ctx.app as unknown as ObsidianApp, plugin, index: ctx.index, repo: ctx.repo };
+	const wrap = (node: ReactElement) => <PluginContext.Provider value={value}>{node}</PluginContext.Provider>;
+	const result = render(wrap(ui));
+	return { ...ctx, plugin, ...result, rerender: (node: ReactElement) => result.rerender(wrap(node)) };
 }
