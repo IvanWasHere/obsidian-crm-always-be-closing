@@ -10,7 +10,7 @@ npm run setup:vault   # one-time: installs the Hot-Reload plugin into test-vault
 npm run dev           # watch build; copies main.js/manifest/styles into test-vault
 ```
 
-Open `test-vault/` as a vault in Obsidian, turn on community plugins, and enable **Always Be Closing** and **Hot Reload**. After that, rebuilds reload the plugin automatically. Use the ribbon's contact icon or the **Always Be Closing: Open home** command.
+Open `test-vault/` as a vault in Obsidian, turn on community plugins, and enable **Always Be Closing** and **Hot Reload**. After that, rebuilds reload the plugin automatically. Use the ribbon's contact icon or the **Always Be Closing: Open dashboard** command.
 
 | Script | What it does |
 |---|---|

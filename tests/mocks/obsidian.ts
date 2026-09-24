@@ -123,6 +123,13 @@ export class Vault extends Events {
 		this.trigger('rename', note.file, oldPath);
 	}
 
+	/** Test helper: the TFile at a path; throws if missing. */
+	file(path: string): TFile {
+		const note = this.notes.get(path);
+		if (!note) throw new Error(`No note at ${path}`);
+		return note.file;
+	}
+
 	readNote(path: string) {
 		return this.notes.get(path);
 	}
@@ -169,8 +176,26 @@ export class FileManager {
 }
 
 export class Workspace extends Events {
+	activeFile: TFile | null = null;
+	/** Calls to openLinkText / openFile, for assertions. */
+	opened: { path: string; newLeaf: unknown }[] = [];
+
 	onLayoutReady(cb: () => void) {
 		cb();
+	}
+	getActiveFile() {
+		return this.activeFile;
+	}
+	/** Test helper: makes a note the active one and fires `file-open`. */
+	setActiveFile(file: TFile | null) {
+		this.activeFile = file;
+		this.trigger('file-open', file);
+	}
+	async openLinkText(linktext: string, _sourcePath: string, newLeaf?: unknown) {
+		this.opened.push({ path: linktext, newLeaf: newLeaf ?? false });
+	}
+	getLeaf() {
+		return { openFile: async (file: TFile) => void this.opened.push({ path: file.path, newLeaf: false }) };
 	}
 }
 
@@ -193,10 +218,77 @@ export const normalizePath = (p: string) => p.replace(/\\/g, '/').replace(/\/+/g
 /** JSON is valid YAML, and the mock vault parses it back with JSON.parse. */
 export const stringifyYaml = (obj: unknown) => `${JSON.stringify(obj)}\n`;
 
+export class Keymap {
+	static isModEvent(evt?: { metaKey?: boolean; ctrlKey?: boolean } | null) {
+		return evt?.metaKey || evt?.ctrlKey ? 'tab' : false;
+	}
+}
+
+export function setIcon(el: HTMLElement, icon: string) {
+	el.dataset.icon = icon;
+}
+
+export class MenuItem {
+	title = '';
+	checked: boolean | null = null;
+	click?: () => void;
+	setTitle(title: string) {
+		this.title = title;
+		return this;
+	}
+	setChecked(checked: boolean | null) {
+		this.checked = checked;
+		return this;
+	}
+	setIcon() {
+		return this;
+	}
+	onClick(cb: () => void) {
+		this.click = cb;
+		return this;
+	}
+}
+
+export class Menu {
+	/** The most recently shown menu, for assertions. */
+	static shown: Menu | null = null;
+	items: MenuItem[] = [];
+	addItem(cb: (item: MenuItem) => void) {
+		const item = new MenuItem();
+		cb(item);
+		this.items.push(item);
+		return this;
+	}
+	addSeparator() {
+		return this;
+	}
+	showAtMouseEvent() {
+		Menu.shown = this;
+		return this;
+	}
+	showAtPosition() {
+		Menu.shown = this;
+		return this;
+	}
+}
+
 export class Plugin {}
 export class ItemView {}
 export class PluginSettingTab {}
 export class Setting {}
+export class Modal {
+	constructor(public app: App) {}
+	setTitle() {
+		return this;
+	}
+	open() {}
+	close() {}
+}
+
 export class Notice {
-	constructor(public message: string) {}
+	/** Messages shown so far, for assertions. */
+	static shown: string[] = [];
+	constructor(public message: string) {
+		Notice.shown.push(message);
+	}
 }

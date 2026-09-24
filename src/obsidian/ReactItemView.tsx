@@ -1,8 +1,8 @@
-import { StrictMode, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { createRoot, type Root } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
 import type CrmPlugin from '../main';
-import { PluginContext } from '../ui/context';
+import { mountReact } from './mountReact';
 
 /**
  * Base class for Obsidian views rendered with React.
@@ -23,15 +23,7 @@ export abstract class ReactItemView extends ItemView {
 
 	async onOpen() {
 		this.contentEl.addClass('abc-view');
-		this.root = createRoot(this.contentEl);
-		const { plugin } = this;
-		this.root.render(
-			<StrictMode>
-				<PluginContext.Provider value={{ app: this.app, plugin, index: plugin.index, repo: plugin.repo }}>
-					{this.renderView()}
-				</PluginContext.Provider>
-			</StrictMode>,
-		);
+		this.root = mountReact(this.contentEl, this.plugin, this.renderView());
 	}
 
 	async onClose() {

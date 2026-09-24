@@ -14,6 +14,8 @@ export interface CrmSettings {
 	folders: CrmFolders;
 	pipelineStages: string[];
 	defaultCurrency: string;
+	/** Active contacts with no interaction for this many days show up as stale. */
+	staleAfterDays: number;
 }
 
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -28,6 +30,7 @@ export const DEFAULT_SETTINGS: CrmSettings = {
 	},
 	pipelineStages: ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost'],
 	defaultCurrency: 'EUR',
+	staleAfterDays: 30,
 };
 
 /** Merges saved data over the defaults, ignoring values of the wrong shape. */
@@ -49,6 +52,10 @@ export function mergeSettings(saved: unknown): CrmSettings {
 			typeof data.defaultCurrency === 'string' && data.defaultCurrency.trim()
 				? data.defaultCurrency
 				: DEFAULT_SETTINGS.defaultCurrency,
+		staleAfterDays:
+			typeof data.staleAfterDays === 'number' && data.staleAfterDays > 0
+				? Math.round(data.staleAfterDays)
+				: DEFAULT_SETTINGS.staleAfterDays,
 	};
 }
 
@@ -123,6 +130,23 @@ export class CrmSettingTab extends PluginSettingTab {
 					.setValue(settings.defaultCurrency)
 					.onChange(async (value) => {
 						settings.defaultCurrency = value.trim().toUpperCase() || DEFAULT_SETTINGS.defaultCurrency;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl).setName('Follow-ups').setHeading();
+
+		new Setting(containerEl)
+			.setName('Stale after (days)')
+			.setDesc('Active contacts with no interaction for this long, and no follow-up scheduled, are listed as stale on the dashboard.')
+			.addText((text) =>
+				text
+					.setPlaceholder(String(DEFAULT_SETTINGS.staleAfterDays))
+					.setValue(String(settings.staleAfterDays))
+					.onChange(async (value) => {
+						const days = Number(value);
+						settings.staleAfterDays =
+							Number.isFinite(days) && days > 0 ? Math.round(days) : DEFAULT_SETTINGS.staleAfterDays;
 						await this.plugin.saveSettings();
 					}),
 			);

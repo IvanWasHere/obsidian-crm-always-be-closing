@@ -34,6 +34,8 @@ export class CrmSnapshot {
 	};
 	/** entity path → paths of the entities it links to. */
 	private readonly forward = new Map<string, { company?: string; deal?: string; contacts: string[] }>();
+	/** entity path → links that don't point at a CRM note of the expected type. */
+	private readonly unresolved = new Map<string, { key: string; linkpath: string }[]>();
 	/** target path → entities that link to it. */
 	private readonly reverse = new Map<string, Entity[]>();
 
@@ -50,11 +52,16 @@ export class CrmSnapshot {
 		for (const list of Object.values(this.byType)) list.sort(byName);
 		this.byType.interaction.sort(byDateDesc);
 
-		// Only keep links that point at indexed entities of the expected type.
-		const target = (link: Wikilink | undefined, from: string, type: EntityType) => {
+		// Only keep links that point at indexed entities of the expected type;
+		// remember the rest so the UI can point them out.
+		const target = (link: Wikilink | undefined, from: string, type: EntityType, key: string) => {
 			if (!link) return undefined;
 			const path = resolve(link, from);
-			return path && entities.get(path)?.type === type ? path : undefined;
+			if (path && entities.get(path)?.type === type) return path;
+			const list = this.unresolved.get(from) ?? [];
+			list.push({ key, linkpath: link.linkpath });
+			this.unresolved.set(from, list);
+			return undefined;
 		};
 
 		// Visit in sorted order so every reverse list comes out sorted too.
@@ -64,15 +71,15 @@ export class CrmSnapshot {
 			...this.byType.interaction,
 		];
 		for (const entity of linkers) {
-			const company = entity.type === 'interaction' ? undefined : target(entity.company, entity.path, 'company');
-			const deal = entity.type === 'interaction' ? target(entity.deal, entity.path, 'deal') : undefined;
+			const company = entity.type === 'interaction' ? undefined : target(entity.company, entity.path, 'company', 'company');
+			const deal = entity.type === 'interaction' ? target(entity.deal, entity.path, 'deal', 'deal') : undefined;
 			const contacts =
 				entity.type === 'contact'
 					? []
 					: [
 							...new Set(
 								entity.contacts
-									.map((l) => target(l, entity.path, 'contact'))
+									.map((l) => target(l, entity.path, 'contact', 'contacts'))
 									.filter((p): p is string => p !== undefined),
 							),
 						];
@@ -96,6 +103,20 @@ export class CrmSnapshot {
 
 	count(type: EntityType): number {
 		return this.byType[type].length;
+	}
+
+	/** Resolved paths of a link field (`company`, `deal` or `contacts`) on an entity. */
+	linkedPaths(path: string, key: string): string[] {
+		const refs = this.forward.get(path);
+		if (!refs) return [];
+		if (key === 'contacts') return [...refs.contacts];
+		const target = key === 'company' ? refs.company : key === 'deal' ? refs.deal : undefined;
+		return target ? [target] : [];
+	}
+
+	/** Link targets in a field that don't resolve to a CRM note of the right type. */
+	unresolvedLinks(path: string, key: string): string[] {
+		return (this.unresolved.get(path) ?? []).filter((u) => u.key === key).map((u) => u.linkpath);
 	}
 
 	/** The company a contact or deal links to. */

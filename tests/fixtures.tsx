@@ -1,8 +1,12 @@
+import type { ReactElement } from 'react';
+import { render } from '@testing-library/react';
 import type { App as ObsidianApp } from 'obsidian';
 import { App } from './mocks/obsidian';
 import { CrmIndex } from '../src/core/CrmIndex';
 import { CrmRepository } from '../src/core/CrmRepository';
 import { mergeSettings, type CrmSettings } from '../src/settings';
+import { PluginContext } from '../src/ui/context';
+import type CrmPlugin from '../src/main';
 
 /** Same notes as test-vault/CRM. */
 export const SEED: Record<string, Record<string, unknown>> = {
@@ -16,7 +20,14 @@ export const SEED: Record<string, Record<string, unknown>> = {
 		last_contacted: '2026-09-20',
 		next_follow_up: '2026-10-01',
 	},
-	'CRM/Contacts/John Smith.md': { type: 'crm-contact', name: 'John Smith', company: '[[Globex]]', status: 'cold' },
+	'CRM/Contacts/John Smith.md': {
+		type: 'crm-contact',
+		name: 'John Smith',
+		company: '[[Globex]]',
+		status: 'cold',
+		last_contacted: '2026-06-02',
+		next_follow_up: '2026-09-15',
+	},
 	'CRM/Contacts/Maria Garcia.md': {
 		type: 'crm-contact',
 		name: 'Maria Garcia',
@@ -64,4 +75,16 @@ export function setup(notes: Record<string, Record<string, unknown> | undefined>
 	const repo = new CrmRepository(obsidianApp, () => settings);
 	index.load();
 	return { app, settings, index, repo };
+}
+
+/** Renders UI inside the plugin context, backed by a mock vault with `notes`. */
+export function renderWithCrm(ui: ReactElement, notes?: Record<string, Record<string, unknown> | undefined>) {
+	const ctx = setup(notes);
+	const plugin = { app: ctx.app, settings: ctx.settings, index: ctx.index, repo: ctx.repo } as unknown as CrmPlugin;
+	const result = render(
+		<PluginContext.Provider value={{ app: ctx.app as unknown as ObsidianApp, plugin, index: ctx.index, repo: ctx.repo }}>
+			{ui}
+		</PluginContext.Provider>,
+	);
+	return { ...ctx, plugin, ...result };
 }

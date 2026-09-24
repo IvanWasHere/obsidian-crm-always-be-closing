@@ -96,8 +96,8 @@ Meeting notes…
 | Bundler | esbuild | Same as the official `obsidian-sample-plugin`; outputs a single `main.js` |
 | State | Zustand (or `useSyncExternalStore` over our own index) | Small, no provider boilerplate |
 | Styling | Plain CSS / CSS modules using Obsidian CSS vars (`--background-primary`, `--text-normal`, …) | No Tailwind — avoids fighting theme CSS and keeps bundle small |
-| Drag & drop | `@dnd-kit/core` | For kanban pipeline |
-| Tables | `@tanstack/react-table` (headless) | Sorting/filtering/virtualization for large contact lists |
+| Drag & drop | Native HTML5 drag and drop plus an Obsidian `Menu` ("Move to …") on each card | No dependency. `@dnd-kit/core` hasn't been updated since 2024 and its successor is still 0.x. Touch devices can't use HTML5 drag and drop, so the card menu covers mobile and keyboard |
+| Tables | Own `DataTable` component | Sorting in ~60 lines; filtering is done by each view. TanStack Table was dropped at M2: v9 replaced the v8 API. Add windowing (e.g. `@tanstack/react-virtual`) when lists get large |
 | Dates | `date-fns` (or Obsidian's bundled `moment`) | Prefer `moment` to avoid extra bundle weight |
 | Testing | Vitest + React Testing Library; mocked `obsidian` module | |
 | Lint/format | ESLint (`eslint-plugin-obsidianmd`) + Prettier | Obsidian's review bot checks for common issues |
@@ -236,8 +236,8 @@ obsidian-crm/
 |---|---|---|
 | 0 ✅ | Scaffold | Sample-plugin setup, React + esbuild working, one "Hello CRM" React view, test vault, lint/test CI |
 | 1 ✅ | Core data | Types, schema, `CrmIndex`, `CrmRepository`, settings tab, unit tests |
-| 2 | MVP UI | Create modals, Contacts table, entity side panel, log interaction → **v0.1** |
-| 3 | Pipeline & follow-ups | Kanban, dashboard, company view → **v0.2** |
+| 2 🧪 | MVP UI | Create modals, Contacts table, entity side panel, log interaction → **v0.1** |
+| 3 🧪 | Pipeline & follow-ups | Kanban, dashboard, company view → **v0.2** |
 | 4 | Polish | Mobile layout, quick capture, CSV import/export, custom fields |
 | 5 | Release | README, screenshots, GitHub release workflow, submit to community plugins |
 
@@ -256,6 +256,12 @@ obsidian-crm/
 - **Indexing rule.** The `type: crm-*` field decides the entity type. A note without `type` inside a configured CRM folder gets that folder's type.
 - **Relations only resolve to CRM notes of the expected type.** The raw link stays on the entity, so the UI can show links to missing notes.
 - **`logInteraction` moves `last_contacted` forward only**, and not for `kind: note`.
+- **One field list drives everything.** `core/fields.ts` defines each entity's editable fields (frontmatter key, label, kind, link target). Forms, the details panel and `CrmRepository.createEntity`/`setField` all read from it. UI values use vault paths for relations; the repository turns them into wikilinks.
+- **Closed deals.** A stage named `won` or `lost`, or starting with `closed`, counts as closed. Closed deals are left out of open-pipeline totals, "closing soon" and company rollups.
+- **Dashboard replaces the home view** and keeps its view type (`always-be-closing-home`), so saved workspaces still open it. It shows follow-ups (overdue, today, next 7 days) with Log, Snooze 1 week and Done. It also lists stale contacts (active, no follow-up set, not contacted within `staleAfterDays`, 30 by default) and open deals closing within 30 days.
+- **Company view is a table**: contacts, open deals, open pipeline and last interaction per company. The details panel covers a single company.
+- **Mixed currencies are never converted.** Totals are shown per currency (e.g. `€62,000 · $5,000`).
+- **The details panel docks itself** in the right sidebar on startup, without taking focus.
 - **Classic settings tab for now.** The declarative settings API needs Obsidian 1.13 and `minAppVersion` is 1.7.2. Revisit when we raise it (lint warns about this).
 
 ### Open
@@ -266,10 +272,18 @@ obsidian-crm/
 ---
 
 ## 11. Next Steps
-Milestones 0 and 1 are done. Core code is in `src/core/`: `types`, `schema`, `CrmIndex`, `CrmSnapshot`, `CrmRepository` and `templates`. React hooks are in `ui/hooks/useCrm.ts`, and settings now include pipeline stages and default currency. Unit tests cover all of these.
+Milestones 2 and 3 are implemented and unit-tested (72 tests), but still need a manual check in `test-vault/`:
+- **M2:** commands, contacts view, details panel, create and log forms.
+- **M3:**
+  - "Open deal pipeline": drag cards between columns, use the ⋯ menu or right-click "Move to", check column totals, and check that a deal with an unknown stage gets its own flagged column.
+  - "Open dashboard" (ribbon icon): follow-up buttons, stale contacts, closing soon.
+  - "Open companies": rollup columns and sorting.
+  - Settings: "Stale after (days)".
 
-Milestone 2 (MVP UI → v0.1):
-1. Create modals (`ReactModal` base) for contact, company and deal, with a fuzzy picker for related notes.
-2. Contacts view: sortable, filterable table (`@tanstack/react-table`). Clicking a row opens the note.
-3. Entity side panel in the right sidebar for the active note: editable fields, related entities, interaction timeline, parse issues.
-4. "Log interaction" command and modal, which uses `repo.logInteraction`.
+Known gaps before tagging v0.1/v0.2:
+- The details panel shows unresolved links as a hint, but editing that field drops them.
+- The entity picker can't create a new company or contact inline.
+- There's no windowing for very large lists yet.
+- Drag and drop is desktop only; on mobile, cards move through the menu.
+
+Then Milestone 4 (polish): mobile layout pass, quick capture, CSV import/export, custom fields.
