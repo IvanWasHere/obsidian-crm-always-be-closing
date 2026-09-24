@@ -1,4 +1,4 @@
-# Obsidian CRM — Plan
+# Always Be Closing — Plan
 
 A lightweight personal/small-team CRM that lives inside an Obsidian vault. The UI is built in React; the data stays as plain Markdown notes with YAML frontmatter, so everything remains readable, linkable, and usable without the plugin.
 
@@ -36,7 +36,6 @@ tags: [lead, conference-2026]
 status: active          # active | cold | archived
 last_contacted: 2026-09-20
 next_follow_up: 2026-10-01
-owner: me
 ---
 Free-form notes about Jane…
 ```
@@ -226,7 +225,7 @@ obsidian-crm/
 ## 8. Testing Strategy
 - **Unit**: schema parsing, index relationship building, repository write logic (with a mocked `App`/`Vault`).
 - **Component**: views with a fake index (React Testing Library).
-- **Manual**: a `test-vault/` folder in the repo with seed data; symlink the built plugin into `test-vault/.obsidian/plugins/obsidian-crm` for dev with hot reload (`pjeby/hot-reload`).
+- **Manual**: a `test-vault/` folder in the repo with seed data; symlink the built plugin into `test-vault/.obsidian/plugins/always-be-closing` for dev with hot reload (`pjeby/hot-reload`).
 - Seed script to generate N fake contacts for perf testing.
 
 ---
@@ -236,7 +235,7 @@ obsidian-crm/
 | # | Milestone | Deliverables |
 |---|---|---|
 | 0 ✅ | Scaffold | Sample-plugin setup, React + esbuild working, one "Hello CRM" React view, test vault, lint/test CI |
-| 1 | Core data | Types, schema, `CrmIndex`, `CrmRepository`, settings tab, unit tests |
+| 1 ✅ | Core data | Types, schema, `CrmIndex`, `CrmRepository`, settings tab, unit tests |
 | 2 | MVP UI | Create modals, Contacts table, entity side panel, log interaction → **v0.1** |
 | 3 | Pipeline & follow-ups | Kanban, dashboard, company view → **v0.2** |
 | 4 | Polish | Mobile layout, quick capture, CSV import/export, custom fields |
@@ -249,9 +248,15 @@ obsidian-crm/
 ### Decided
 - **Personal use.** No `owner` field and no multi-user conflict handling.
 - **Interactions are separate notes.** Logging them into the daily note stays an optional extra.
-- **Plugin id `vault-crm`, name "Vault CRM".** Obsidian doesn't allow "Obsidian" in plugin ids or names. Check the community list for a clash before release.
+- **Plugin id `always-be-closing`, name "Always Be Closing"** (renamed from `vault-crm` / "Vault CRM"). No clash in the community list as of 2026-09-25; check again before release. CSS classes use the `abc-` prefix. Obsidian doesn't allow "Obsidian" in plugin ids or names.
 - **`minAppVersion` 1.7.2.** Needed for `workspace.revealLeaf`.
 - **TypeScript pinned to 6.0.** typescript-eslint doesn't support TS 7 yet.
+- **No Zustand.** `CrmIndex` publishes an immutable `CrmSnapshot` (entities plus resolved relations) and React reads it with `useSyncExternalStore`.
+- **Hand-written validators instead of Zod.** Parsing never throws. Bad fields are dropped and listed in `entity.issues`, so a note with bad data still shows up.
+- **Indexing rule.** The `type: crm-*` field decides the entity type. A note without `type` inside a configured CRM folder gets that folder's type.
+- **Relations only resolve to CRM notes of the expected type.** The raw link stays on the entity, so the UI can show links to missing notes.
+- **`logInteraction` moves `last_contacted` forward only**, and not for `kind: note`.
+- **Classic settings tab for now.** The declarative settings API needs Obsidian 1.13 and `minAppVersion` is 1.7.2. Revisit when we raise it (lint warns about this).
 
 ### Open
 - **Integration with Obsidian Bases / Dataview** — expose data only via frontmatter, or also provide a Bases view?
@@ -261,11 +266,10 @@ obsidian-crm/
 ---
 
 ## 11. Next Steps
-Milestone 0 is done: sample-plugin scaffold, React view bridge, test vault with seed data and Hot-Reload, Vitest, ESLint and CI.
+Milestones 0 and 1 are done. Core code is in `src/core/`: `types`, `schema`, `CrmIndex`, `CrmSnapshot`, `CrmRepository` and `templates`. React hooks are in `ui/hooks/useCrm.ts`, and settings now include pipeline stages and default currency. Unit tests cover all of these.
 
-Milestone 1 (core data):
-1. `core/types.ts` + `core/schema.ts`: parse and validate frontmatter for the four entity types.
-2. `CrmIndex`: build from `metadataCache`, keep it up to date on `changed`/`rename`/`delete`, and track reverse relations. Replaces the temporary `useFolderCounts` hook.
-3. `CrmRepository`: create notes from templates and edit fields with `processFrontMatter`.
-4. Settings: pipeline stages and default currency. Consider the declarative settings API (`getSettingDefinitions`, Obsidian 1.13+) so settings show up in settings search.
-5. Unit tests for the schema, the index and the repository.
+Milestone 2 (MVP UI → v0.1):
+1. Create modals (`ReactModal` base) for contact, company and deal, with a fuzzy picker for related notes.
+2. Contacts view: sortable, filterable table (`@tanstack/react-table`). Clicking a row opens the note.
+3. Entity side panel in the right sidebar for the active note: editable fields, related entities, interaction timeline, parse issues.
+4. "Log interaction" command and modal, which uses `repo.logInteraction`.

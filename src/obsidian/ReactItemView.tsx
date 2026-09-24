@@ -22,7 +22,7 @@ export abstract class ReactItemView extends ItemView {
 	protected abstract renderView(): ReactNode;
 
 	async onOpen() {
-		this.contentEl.addClass('vault-crm-view');
+		this.contentEl.addClass('abc-view');
 		this.root = createRoot(this.contentEl);
 		const { plugin } = this;
 		this.root.render(

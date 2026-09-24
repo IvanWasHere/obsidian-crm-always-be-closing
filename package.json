@@ -1,5 +1,5 @@
 {
-	"name": "vault-crm",
+	"name": "always-be-closing",
 	"version": "0.0.1",
 	"description": "A personal CRM for Obsidian: contacts, companies, deals and interactions stored as Markdown notes.",
 	"main": "main.js",

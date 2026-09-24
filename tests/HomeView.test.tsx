@@ -1,43 +1,40 @@
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { App as ObsidianApp } from 'obsidian';
-import { App } from './mocks/obsidian';
 import { PluginContext } from '../src/ui/context';
 import { HomeView } from '../src/ui/views/HomeView';
-import { DEFAULT_SETTINGS } from '../src/settings';
 import type CrmPlugin from '../src/main';
+import { setup } from './fixtures';
 
-function renderHome(files: string[]) {
-	const app = new App(files);
-	const plugin = { settings: DEFAULT_SETTINGS } as unknown as CrmPlugin;
+function renderHome(notes?: Parameters<typeof setup>[0]) {
+	const ctx = setup(notes);
+	const plugin = { settings: ctx.settings } as unknown as CrmPlugin;
 	render(
-		<PluginContext.Provider value={{ app: app as unknown as ObsidianApp, plugin }}>
+		<PluginContext.Provider
+			value={{ app: ctx.app as unknown as ObsidianApp, plugin, index: ctx.index, repo: ctx.repo }}
+		>
 			<HomeView />
 		</PluginContext.Provider>,
 	);
-	return app;
+	return ctx;
 }
 
 describe('HomeView', () => {
-	it('counts notes per CRM folder', () => {
-		renderHome([
-			'CRM/Contacts/Jane Doe.md',
-			'CRM/Contacts/John Smith.md',
-			'CRM/Companies/Acme Inc.md',
-			'CRM/Contacts/photo.png',
-			'Daily/2026-09-25.md',
-		]);
-
-		expect(screen.getByTestId('stat-contacts')).toHaveTextContent('2');
-		expect(screen.getByTestId('stat-companies')).toHaveTextContent('1');
-		expect(screen.getByTestId('stat-deals')).toHaveTextContent('0');
+	it('shows entity counts from the index', () => {
+		renderHome();
+		expect(screen.getByTestId('stat-contact')).toHaveTextContent('3');
+		expect(screen.getByTestId('stat-company')).toHaveTextContent('2');
+		expect(screen.getByTestId('stat-deal')).toHaveTextContent('2');
+		expect(screen.getByTestId('stat-interaction')).toHaveTextContent('2');
 	});
 
-	it('updates when a note is created', () => {
-		const app = renderHome([]);
+	it('updates when the index publishes', () => {
+		const { app, index } = renderHome({});
+		expect(screen.getByTestId('stat-deal')).toHaveTextContent('0');
 		act(() => {
-			app.vault.addFile('CRM/Deals/Acme - Pilot.md');
+			app.vault.addNote('CRM/Deals/Acme - Pilot.md', { type: 'crm-deal', stage: 'lead' });
+			index.flush();
 		});
-		expect(screen.getByTestId('stat-deals')).toHaveTextContent('1');
+		expect(screen.getByTestId('stat-deal')).toHaveTextContent('1');
 	});
 });

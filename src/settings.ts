@@ -116,7 +116,7 @@ export class CrmSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Default currency')
-			.setDesc('Currency code for new deals, e.g. EUR or USD.')
+			.setDesc('Used for new deals that have a value.')
 			.addText((text) =>
 				text
 					.setPlaceholder(DEFAULT_SETTINGS.defaultCurrency)

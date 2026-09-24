@@ -1,7 +1,7 @@
 import { ReactItemView } from './ReactItemView';
 import { HomeView } from '../ui/views/HomeView';
 
-export const VIEW_TYPE_CRM_HOME = 'vault-crm-home';
+export const VIEW_TYPE_CRM_HOME = 'always-be-closing-home';
 
 export class CrmHomeView extends ReactItemView {
 	getViewType() {

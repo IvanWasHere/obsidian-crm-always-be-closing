@@ -1,29 +1,29 @@
-/* All selectors are scoped under .vault-crm-* to avoid clashing with themes. */
+/* All selectors are scoped under .abc-* (plugin initials) to avoid clashing with themes. */
 
-.vault-crm-home {
+.abc-home {
 	padding: var(--size-4-4);
 }
 
-.vault-crm-stats {
+.abc-stats {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	gap: var(--size-4-3);
 }
 
-.vault-crm-stat {
+.abc-stat {
 	padding: var(--size-4-3);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	background: var(--background-secondary);
 }
 
-.vault-crm-stat-value {
+.abc-stat-value {
 	font-size: var(--font-ui-larger);
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
 }
 
-.vault-crm-stat-label {
+.abc-stat-label {
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
 }

@@ -1,4 +1,4 @@
-# Vault CRM
+# Always Be Closing
 
 A personal CRM for Obsidian. Contacts, companies, deals and interactions are plain Markdown notes with frontmatter; the plugin adds React views on top. See [plan.md](plan.md).
 
@@ -10,7 +10,7 @@ npm run setup:vault   # one-time: installs the Hot-Reload plugin into test-vault
 npm run dev           # watch build; copies main.js/manifest/styles into test-vault
 ```
 
-Open `test-vault/` as a vault in Obsidian, turn on community plugins, and enable **Vault CRM** and **Hot Reload**. After that, rebuilds reload the plugin automatically. Use the ribbon's contact icon or the **Vault CRM: Open home** command.
+Open `test-vault/` as a vault in Obsidian, turn on community plugins, and enable **Always Be Closing** and **Hot Reload**. After that, rebuilds reload the plugin automatically. Use the ribbon's contact icon or the **Always Be Closing: Open home** command.
 
 | Script | What it does |
 |---|---|

@@ -14,7 +14,7 @@ const prod = process.argv[2] === 'production';
 
 // In dev mode, copy build output into the bundled test vault so Obsidian
 // (with the Hot-Reload plugin) picks up changes automatically.
-const TEST_VAULT_PLUGIN_DIR = 'test-vault/.obsidian/plugins/vault-crm';
+const TEST_VAULT_PLUGIN_DIR = 'test-vault/.obsidian/plugins/always-be-closing';
 const copyToTestVault = {
 	name: 'copy-to-test-vault',
 	setup(build) {

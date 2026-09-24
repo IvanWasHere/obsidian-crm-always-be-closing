@@ -146,7 +146,7 @@ export class CrmIndex {
 	/** Returns true if the file is a CRM entity and was added to the index. */
 	private indexFile(file: TFile): boolean {
 		const settings = this.getSettings();
-		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Frontmatter | undefined;
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const type = classify(file.path, fm, settings);
 		if (!type) return false;
 		this.entities.set(file.path, parseEntity(type, file.path, fm, { stages: settings.pipelineStages }));
