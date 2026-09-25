@@ -77,10 +77,11 @@ describe('ContactsView', () => {
 						{ key: 'hidden', label: 'Hidden', kind: 'text' },
 					],
 					company: [],
-					deal: [],
+					project: [],
 					interaction: [],
 					quote: [],
 					invoice: [],
+					requirement: [],
 				},
 			},
 		);

@@ -6,10 +6,11 @@ import { ENTITY_TYPES, type EntityType } from './core/types';
 export interface CrmFolders {
 	contacts: string;
 	companies: string;
-	deals: string;
+	projects: string;
 	interactions: string;
 	quotes: string;
 	invoices: string;
+	requirements: string;
 }
 
 export interface BillingSettings {
@@ -36,8 +37,13 @@ export interface BillingSettings {
 }
 
 export interface CrmSettings {
-	/** Bumped when the frontmatter format changes, to drive migrations. */
+	/**
+	 * Bumped when the frontmatter format changes, to drive migrations.
+	 * 2: deals became projects (`crm-project`, `project:` links, CRM/Projects).
+	 */
 	schemaVersion: number;
+	/** Where deals lived before the rename; cleared once they've been migrated. */
+	legacyDealsFolder?: string;
 	folders: CrmFolders;
 	pipelineStages: string[];
 	defaultCurrency: string;
@@ -48,22 +54,23 @@ export interface CrmSettings {
 	billing: BillingSettings;
 }
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export const DEFAULT_SETTINGS: CrmSettings = {
 	schemaVersion: CURRENT_SCHEMA_VERSION,
 	folders: {
 		contacts: 'CRM/Contacts',
 		companies: 'CRM/Companies',
-		deals: 'CRM/Deals',
+		projects: 'CRM/Projects',
 		interactions: 'CRM/Interactions',
 		quotes: 'CRM/Quotes',
 		invoices: 'CRM/Invoices',
+		requirements: 'CRM/Requirements',
 	},
 	pipelineStages: ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost'],
 	defaultCurrency: 'EUR',
 	staleAfterDays: 30,
-	customFields: { contact: [], company: [], deal: [], interaction: [], quote: [], invoice: [] },
+	customFields: { contact: [], company: [], project: [], interaction: [], quote: [], invoice: [], requirement: [] },
 	billing: {
 		invoicePrefix: 'INV-',
 		quotePrefix: 'Q-',
@@ -129,11 +136,21 @@ export function mergeSettings(saved: unknown): CrmSettings {
 		const value = data.folders?.[key];
 		if (typeof value === 'string' && value.trim()) folders[key] = value;
 	}
+	// Before schema 2 the folder was `deals`. A custom deals folder becomes the
+	// projects folder; the default one is left for the migration to empty.
+	const savedVersion = typeof data.schemaVersion === 'number' ? data.schemaVersion : saved ? 1 : CURRENT_SCHEMA_VERSION;
+	const legacy = (data.folders as { deals?: unknown } | undefined)?.deals;
+	const legacyDealsFolder =
+		savedVersion < 2 ? (typeof legacy === 'string' && legacy.trim() ? legacy : 'CRM/Deals') : undefined;
+	if (legacyDealsFolder && !data.folders?.projects && legacyDealsFolder !== 'CRM/Deals') {
+		folders.projects = legacyDealsFolder;
+	}
 	const stages = Array.isArray(data.pipelineStages)
 		? data.pipelineStages.filter((s): s is string => typeof s === 'string' && s.trim() !== '')
 		: [];
 	return {
-		schemaVersion: typeof data.schemaVersion === 'number' ? data.schemaVersion : CURRENT_SCHEMA_VERSION,
+		schemaVersion: savedVersion,
+		...(legacyDealsFolder ? { legacyDealsFolder } : {}),
 		folders,
 		pipelineStages: stages.length > 0 ? stages : [...DEFAULT_SETTINGS.pipelineStages],
 		defaultCurrency:
@@ -160,19 +177,21 @@ export function parseStages(value: string): string[] {
 const CUSTOM_FIELD_HEADINGS: Record<EntityType, string> = {
 	contact: 'Contact fields',
 	company: 'Company fields',
-	deal: 'Deal fields',
+	project: 'Project fields',
 	interaction: 'Interaction fields',
 	quote: 'Quote fields',
 	invoice: 'Invoice fields',
+	requirement: 'Requirement fields',
 };
 
 const FOLDER_LABELS: Record<keyof CrmFolders, string> = {
 	contacts: 'Contacts folder',
 	companies: 'Companies folder',
-	deals: 'Deals folder',
+	projects: 'Projects folder',
 	interactions: 'Interactions folder',
 	quotes: 'Quotes folder',
 	invoices: 'Invoices folder',
+	requirements: 'Requirements folder',
 };
 
 export class CrmSettingTab extends PluginSettingTab {
@@ -211,7 +230,7 @@ export class CrmSettingTab extends PluginSettingTab {
 				);
 		}
 
-		new Setting(containerEl).setName('Deals').setHeading();
+		new Setting(containerEl).setName('Projects').setHeading();
 
 		new Setting(containerEl)
 			.setName('Pipeline stages')
@@ -229,7 +248,7 @@ export class CrmSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Default currency')
-			.setDesc('Used for new deals that have a value.')
+			.setDesc('Used for new projects that have a value.')
 			.addText((text) =>
 				text
 					.setPlaceholder(DEFAULT_SETTINGS.defaultCurrency)

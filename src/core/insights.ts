@@ -1,15 +1,15 @@
 import type { CrmSnapshot } from './CrmSnapshot';
 import { addDays } from './dates';
-import type { Contact, DateString, Deal } from './types';
+import type { Contact, DateString, Project } from './types';
 
-/** `won`, `lost` and `closed …` stages end a deal; everything else is open. */
+/** `won`, `lost` and `closed …` stages end a project; everything else is open. */
 export function isClosedStage(stage: string): boolean {
 	const s = stage.trim().toLowerCase();
 	return s === 'won' || s === 'lost' || s.startsWith('closed');
 }
 
-export function openDeals(crm: CrmSnapshot): Deal[] {
-	return crm.all('deal').filter((d) => !isClosedStage(d.stage));
+export function openProjects(crm: CrmSnapshot): Project[] {
+	return crm.all('project').filter((d) => !isClosedStage(d.stage));
 }
 
 export interface FollowUps {
@@ -48,18 +48,18 @@ export function staleContacts(crm: CrmSnapshot, today: DateString, days: number)
 		.sort((a, b) => (a.lastContacted ?? '').localeCompare(b.lastContacted ?? '') || a.name.localeCompare(b.name));
 }
 
-/** Open deals expected to close within `days` days, including overdue ones. Soonest first. */
-export function closingSoon(crm: CrmSnapshot, today: DateString, days: number): Deal[] {
+/** Open projects expected to close within `days` days, including overdue ones. Soonest first. */
+export function closingSoon(crm: CrmSnapshot, today: DateString, days: number): Project[] {
 	const until = addDays(today, days);
-	return openDeals(crm)
+	return openProjects(crm)
 		.filter((d) => d.expectedClose !== undefined && d.expectedClose <= until)
 		.sort((a, b) => a.expectedClose!.localeCompare(b.expectedClose!));
 }
 
-/** Deal values summed per currency, e.g. `{ EUR: 62000, USD: 5000 }`. Deals without a value are skipped. */
-export function totalsByCurrency(deals: readonly Deal[], defaultCurrency: string): Record<string, number> {
+/** Project values summed per currency, e.g. `{ EUR: 62000, USD: 5000 }`. Projects without a value are skipped. */
+export function totalsByCurrency(projects: readonly Project[], defaultCurrency: string): Record<string, number> {
 	const totals: Record<string, number> = {};
-	for (const d of deals) {
+	for (const d of projects) {
 		if (d.value === undefined) continue;
 		const currency = d.currency ?? defaultCurrency;
 		totals[currency] = (totals[currency] ?? 0) + d.value;

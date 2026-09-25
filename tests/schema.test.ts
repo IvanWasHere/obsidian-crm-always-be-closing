@@ -32,7 +32,7 @@ describe('parseWikilink', () => {
 
 describe('typeFromTag', () => {
 	it('maps crm-* types', () => {
-		expect(typeFromTag('crm-deal')).toBe('deal');
+		expect(typeFromTag('crm-project')).toBe('project');
 		expect(typeFromTag('daily')).toBeNull();
 	});
 });
@@ -92,14 +92,14 @@ describe('parseEntity', () => {
 		]);
 	});
 
-	it('parses a deal and validates stage and numbers', () => {
-		const deal = parseEntity(
-			'deal',
+	it('parses a project and validates stage and numbers', () => {
+		const project = parseEntity(
+			'project',
 			'd.md',
 			{ contacts: ['[[Jane Doe]]', 5], stage: 'proposal', value: '12,000', currency: 'eur', probability: 0.4 },
 			opts,
 		);
-		expect(deal).toMatchObject({
+		expect(project).toMatchObject({
 			contacts: [{ linkpath: 'Jane Doe' }],
 			stage: 'proposal',
 			value: 12000,
@@ -108,7 +108,7 @@ describe('parseEntity', () => {
 			issues: ['contacts has entries that are not links'],
 		});
 
-		const odd = parseEntity('deal', 'd.md', { stage: 'maybe', value: 'lots', probability: 40 }, opts);
+		const odd = parseEntity('project', 'd.md', { stage: 'maybe', value: 'lots', probability: 40 }, opts);
 		expect(odd).toMatchObject({ stage: 'maybe' });
 		expect(odd.issues).toEqual([
 			'stage "maybe" is not in the pipeline stages',
@@ -116,7 +116,7 @@ describe('parseEntity', () => {
 			'value should be a number',
 		]);
 
-		const noStage = parseEntity('deal', 'd.md', {}, opts);
+		const noStage = parseEntity('project', 'd.md', {}, opts);
 		expect(noStage).toMatchObject({ stage: 'lead', issues: ['stage is missing; treated as "lead"'] });
 	});
 
@@ -124,14 +124,14 @@ describe('parseEntity', () => {
 		const interaction = parseEntity(
 			'interaction',
 			'i.md',
-			{ kind: 'call', date: new Date('2026-09-20'), contacts: '[[Jane Doe]]', deal: '[[Acme - Pilot]]', summary: 'Scope' },
+			{ kind: 'call', date: new Date('2026-09-20'), contacts: '[[Jane Doe]]', project: '[[Acme - Pilot]]', summary: 'Scope' },
 			opts,
 		);
 		expect(interaction).toMatchObject({
 			kind: 'call',
 			date: '2026-09-20',
 			contacts: [{ linkpath: 'Jane Doe' }],
-			deal: { linkpath: 'Acme - Pilot' },
+			project: { linkpath: 'Acme - Pilot' },
 			summary: 'Scope',
 			issues: [],
 		});

@@ -14,7 +14,7 @@ afterEach(() => {
 
 const ACME = 'CRM/Companies/Acme Inc.md';
 const JANE = 'CRM/Contacts/Jane Doe.md';
-const PILOT = 'CRM/Deals/Acme - Pilot.md';
+const PILOT = 'CRM/Projects/Acme - Pilot.md';
 
 describe('line items', () => {
 	it('parses items with defaults and counts unreadable ones', () => {
@@ -88,7 +88,7 @@ describe('repository billing actions', () => {
 			number: 'INV-2026-0001',
 			company: [ACME],
 			contact: [JANE],
-			deal: [PILOT],
+			project: [PILOT],
 			issued: '2026-09-25',
 			due: '2026-10-25',
 			items: [
@@ -103,7 +103,7 @@ describe('repository billing actions', () => {
 			status: 'draft',
 			company: '[[Acme Inc]]',
 			contact: '[[Jane Doe]]',
-			deal: '[[Acme - Pilot]]',
+			project: '[[Acme - Pilot]]',
 			issued: '2026-09-25',
 			due: '2026-10-25',
 			currency: 'EUR',
@@ -139,7 +139,7 @@ describe('repository billing actions', () => {
 				number: 'Q-2026-0001',
 				status: 'sent',
 				company: '[[Acme Inc]]',
-				deal: '[[Acme - Pilot]]',
+				project: '[[Acme - Pilot]]',
 				currency: 'USD',
 				items: [{ description: 'Setup', qty: 1, price: 100, tax: 0 }],
 			},
@@ -151,7 +151,7 @@ describe('repository billing actions', () => {
 			number: 'INV-2026-0001',
 			status: 'draft',
 			company: '[[Acme Inc]]',
-			deal: '[[Acme - Pilot]]',
+			project: '[[Acme - Pilot]]',
 			quote: '[[Q-2026-0001 Acme Inc]]',
 			currency: 'USD',
 			due: '2026-10-25',
@@ -177,14 +177,14 @@ describe('repository billing actions', () => {
 	});
 });
 
-describe('deal stage history', () => {
-	it('records moves, keeping the stage the deal was in before tracking started', async () => {
+describe('project stage history', () => {
+	it('records moves, keeping the stage the project was in before tracking started', async () => {
 		const { app, repo } = setup({
-			'CRM/Deals/Old.md': { type: 'crm-deal', stage: 'lead', created: '2026-08-01' },
+			'CRM/Projects/Old.md': { type: 'crm-project', stage: 'lead', created: '2026-08-01' },
 		});
-		await repo.moveDealStage('CRM/Deals/Old.md', 'proposal');
-		await repo.moveDealStage('CRM/Deals/Old.md', 'proposal');
-		expect(app.vault.readNote('CRM/Deals/Old.md')?.frontmatter?.stage_history).toEqual([
+		await repo.moveProjectStage('CRM/Projects/Old.md', 'proposal');
+		await repo.moveProjectStage('CRM/Projects/Old.md', 'proposal');
+		expect(app.vault.readNote('CRM/Projects/Old.md')?.frontmatter?.stage_history).toEqual([
 			'2026-08-01 lead',
 			'2026-09-25 proposal',
 		]);
@@ -192,20 +192,20 @@ describe('deal stage history', () => {
 
 	it('records stage edits made directly in frontmatter', async () => {
 		const { app, index, repo } = setup({
-			'CRM/Deals/D.md': { type: 'crm-deal', stage: 'lead', created: '2026-09-01', stage_history: ['2026-09-01 lead'] },
+			'CRM/Projects/D.md': { type: 'crm-project', stage: 'lead', created: '2026-09-01', stage_history: ['2026-09-01 lead'] },
 		});
-		index.onDealStageChange = (path, stage, previous) => void repo.recordStage(path, stage, previous);
+		index.onProjectStageChange = (path, stage, previous) => void repo.recordStage(path, stage, previous);
 
-		app.vault.setFrontmatter('CRM/Deals/D.md', { ...app.vault.readNote('CRM/Deals/D.md')!.frontmatter, stage: 'won' });
+		app.vault.setFrontmatter('CRM/Projects/D.md', { ...app.vault.readNote('CRM/Projects/D.md')!.frontmatter, stage: 'won' });
 		index.flush();
 		await vi.waitFor(() =>
-			expect(app.vault.readNote('CRM/Deals/D.md')?.frontmatter?.stage_history).toEqual([
+			expect(app.vault.readNote('CRM/Projects/D.md')?.frontmatter?.stage_history).toEqual([
 				'2026-09-01 lead',
 				'2026-09-25 won',
 			]),
 		);
 		// The index sees the history write but no new stage change, so nothing is appended twice.
 		index.flush();
-		expect(app.vault.readNote('CRM/Deals/D.md')?.frontmatter?.stage_history).toHaveLength(2);
+		expect(app.vault.readNote('CRM/Projects/D.md')?.frontmatter?.stage_history).toHaveLength(2);
 	});
 });

@@ -19,16 +19,16 @@ describe('DashboardView', () => {
 		renderWithCrm(<DashboardView />);
 		expect(screen.getByTestId('stat-contacts')).toHaveTextContent('3');
 		expect(screen.getByTestId('stat-companies')).toHaveTextContent('2');
-		expect(screen.getByTestId('stat-open-deals')).toHaveTextContent('2');
+		expect(screen.getByTestId('stat-open-projects')).toHaveTextContent('2');
 		expect(screen.getByTestId('stat-pipeline')).toHaveTextContent(/12,000/);
 	});
 
-	it('lists follow-ups, stale contacts and deals closing soon', () => {
+	it('lists follow-ups, stale contacts and projects closing soon', () => {
 		renderWithCrm(<DashboardView />, {
 			...SEED,
 			'CRM/Contacts/Ann.md': { type: 'crm-contact', last_contacted: '2026-09-24', next_follow_up: '2026-09-25' },
 			'CRM/Contacts/Bo.md': { type: 'crm-contact', last_contacted: '2026-07-01' },
-			'CRM/Deals/Soon.md': { type: 'crm-deal', stage: 'proposal', expected_close: '2026-10-10', value: 500 },
+			'CRM/Projects/Soon.md': { type: 'crm-project', stage: 'proposal', expected_close: '2026-10-10', value: 500 },
 		});
 
 		const followUps = section('Follow-ups');

@@ -32,6 +32,15 @@ function cell(spec: FieldSpec, entity: Entity, crm: CrmSnapshot): string {
 		const resolved = crm.linkedPaths(entity.path, spec.key).map((p) => crm.get(p)?.name ?? p);
 		return [...resolved, ...crm.unresolvedLinks(entity.path, spec.key)].join('; ');
 	}
+	if (spec.kind === 'assets') {
+		return [...crm.linkedPaths(entity.path, spec.key), ...crm.unresolvedLinks(entity.path, spec.key)].join('; ');
+	}
+	if (spec.kind === 'phases' && entity.type === 'project') {
+		// e.g. "Discovery (2026-10-01, done); Build (2026-11-15)"
+		return entity.phases
+			.map((p) => `${p.name}${p.deadline || p.done ? ` (${[p.deadline, p.done ? 'done' : ''].filter(Boolean).join(', ')})` : ''}`)
+			.join('; ');
+	}
 	if (spec.kind === 'items' && (entity.type === 'quote' || entity.type === 'invoice')) {
 		// e.g. "2 × Training (days) @ 2000 +19%; 1 × Pilot setup @ 8000 +19%"
 		return entity.items.map((i) => `${i.qty} × ${i.description} @ ${i.price}${i.tax ? ` +${i.tax}%` : ''}`).join('; ');

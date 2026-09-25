@@ -25,8 +25,9 @@ export const CATEGORY_META: Record<EventCategory, { label: string; slot: number;
 	meeting: { label: 'Meetings', slot: 1, icon: 'calendar-clock' },
 	'follow-up': { label: 'Follow-ups', slot: 2, icon: 'bell' },
 	'invoice-due': { label: 'Invoices due', slot: 3, icon: 'receipt' },
-	'deal-close': { label: 'Deal closes', slot: 4, icon: 'target' },
+	'project-close': { label: 'Project closes', slot: 4, icon: 'target' },
 	interaction: { label: 'Past interactions', slot: 5, icon: 'history' },
+	deadline: { label: 'Deadlines', slot: 6, icon: 'flag' },
 };
 
 const AGENDA_DAYS = 30;
@@ -52,7 +53,7 @@ function addMonths(date: string, n: number): string {
 	return d.toISOString().slice(0, 10);
 }
 
-/** Meetings, follow-ups, invoice due dates and deal closes in a month, week or agenda layout. */
+/** Meetings, follow-ups, invoice due dates and project closes in a month, week or agenda layout. */
 export function CalendarView() {
 	const crm = useCrm();
 	const { plugin } = usePlugin();

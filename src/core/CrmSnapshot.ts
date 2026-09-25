@@ -1,40 +1,44 @@
 import type {
 	Company,
 	Contact,
-	Deal,
+	Project,
 	Entity,
 	EntityOfType,
 	EntityType,
 	Interaction,
 	Invoice,
 	Quote,
+	Requirement,
 	Wikilink,
 } from './types';
 
 /**
  * Link fields per entity type: frontmatter key (same as the entity property)
- * and the entity type it must point at. Drives relation building.
+ * and the entity type it must point at, or `file` for any vault file.
+ * Drives relation building.
  */
-const LINK_FIELDS: Record<EntityType, [key: string, target: EntityType][]> = {
+const LINK_FIELDS: Record<EntityType, [key: string, target: EntityType | 'file'][]> = {
 	contact: [['company', 'company']],
 	company: [],
-	deal: [
+	project: [
 		['company', 'company'],
 		['contacts', 'contact'],
+		['assets', 'file'],
 	],
+	requirement: [['project', 'project']],
 	interaction: [
 		['contacts', 'contact'],
-		['deal', 'deal'],
+		['project', 'project'],
 	],
 	quote: [
 		['company', 'company'],
 		['contact', 'contact'],
-		['deal', 'deal'],
+		['project', 'project'],
 	],
 	invoice: [
 		['company', 'company'],
 		['contact', 'contact'],
-		['deal', 'deal'],
+		['project', 'project'],
 		['quote', 'quote'],
 	],
 };
@@ -73,10 +77,11 @@ export class CrmSnapshot {
 	private readonly byType: { [T in EntityType]: EntityOfType<T>[] } = {
 		contact: [],
 		company: [],
-		deal: [],
+		project: [],
 		interaction: [],
 		quote: [],
 		invoice: [],
+		requirement: [],
 	};
 	/** entity path → link field key → resolved target paths. */
 	private readonly forward = new Map<string, Record<string, string[]>>();
@@ -101,7 +106,7 @@ export class CrmSnapshot {
 		this.byType.invoice.sort(byIssuedDesc);
 
 		// Visit in sorted order so every reverse list comes out sorted too.
-		for (const type of ['contact', 'deal', 'interaction', 'quote', 'invoice'] as const) {
+		for (const type of ['contact', 'project', 'interaction', 'quote', 'invoice', 'requirement'] as const) {
 			for (const entity of this.byType[type]) {
 				const refs: Record<string, string[]> = {};
 				for (const [key, targetType] of LINK_FIELDS[type]) {
@@ -112,7 +117,7 @@ export class CrmSnapshot {
 						// Only keep links that point at indexed entities of the expected type;
 						// remember the rest so the UI can point them out.
 						const path = resolve(link, entity.path);
-						if (path && entities.get(path)?.type === targetType) {
+						if (path && (targetType === 'file' || entities.get(path)?.type === targetType)) {
 							paths.add(path);
 						} else {
 							const list = this.unresolved.get(entity.path) ?? [];
@@ -121,7 +126,8 @@ export class CrmSnapshot {
 						}
 					}
 					refs[key] = [...paths];
-					for (const p of paths) push(this.reverse, p, entity);
+					// Assets point at files, not CRM notes: nothing to look up in reverse.
+					if (targetType !== 'file') for (const p of paths) push(this.reverse, p, entity);
 				}
 				this.forward.set(entity.path, refs);
 			}
@@ -143,7 +149,7 @@ export class CrmSnapshot {
 		return this.byType[type].length;
 	}
 
-	/** Resolved paths of a link field (e.g. `company`, `contacts`, `deal`) on an entity. */
+	/** Resolved paths of a link field (e.g. `company`, `contacts`, `project`) on an entity. */
 	linkedPaths(path: string, key: string): string[] {
 		return [...(this.forward.get(path)?.[key] ?? [])];
 	}
@@ -153,16 +159,16 @@ export class CrmSnapshot {
 		return (this.unresolved.get(path) ?? []).filter((u) => u.key === key).map((u) => u.linkpath);
 	}
 
-	/** The company a contact, deal, quote or invoice links to. */
+	/** The company a contact, project, quote or invoice links to. */
 	companyOf(path: string): Company | undefined {
 		const target = this.forward.get(path)?.company?.[0];
 		return target ? this.get(target, 'company') : undefined;
 	}
 
-	/** The deal an interaction, quote or invoice links to. */
-	dealOf(path: string): Deal | undefined {
-		const target = this.forward.get(path)?.deal?.[0];
-		return target ? this.get(target, 'deal') : undefined;
+	/** The project an interaction, quote or invoice links to. */
+	projectOf(path: string): Project | undefined {
+		const target = this.forward.get(path)?.project?.[0];
+		return target ? this.get(target, 'project') : undefined;
 	}
 
 	/** The quote an invoice was made from. */
@@ -171,7 +177,7 @@ export class CrmSnapshot {
 		return target ? this.get(target, 'quote') : undefined;
 	}
 
-	/** Contacts on a deal, interaction, quote or invoice, or the contacts of a company. */
+	/** Contacts on a project, interaction, quote or invoice, or the contacts of a company. */
 	contactsOf(path: string): readonly Contact[] {
 		if (this.entities.get(path)?.type === 'company') return this.linking(path, 'contact');
 		const refs = this.forward.get(path);
@@ -179,30 +185,35 @@ export class CrmSnapshot {
 		return own.map((p) => this.get(p, 'contact')!);
 	}
 
-	/** Quotes linking to a company, contact or deal, newest first. */
+	/** Quotes linking to a company, contact or project, newest first. */
 	quotesOf(path: string): readonly Quote[] {
 		return this.linking(path, 'quote');
 	}
 
-	/** Invoices linking to a company, contact, deal or quote, newest first. */
+	/** Requirements of a project (unsorted; see sortRequirements). */
+	requirementsOf(path: string): readonly Requirement[] {
+		return this.linking(path, 'requirement');
+	}
+
+	/** Invoices linking to a company, contact, project or quote, newest first. */
 	invoicesOf(path: string): readonly Invoice[] {
 		return this.linking(path, 'invoice');
 	}
 
-	/** Deals of a company, or deals a contact is on. */
-	dealsOf(path: string): readonly Deal[] {
-		return this.linking(path, 'deal');
+	/** Projects of a company, or projects a contact is on. */
+	projectsOf(path: string): readonly Project[] {
+		return this.linking(path, 'project');
 	}
 
 	/**
-	 * Interactions involving a contact or deal, newest first. For a company,
-	 * this rolls up interactions of its contacts and deals.
+	 * Interactions involving a contact or project, newest first. For a company,
+	 * this rolls up interactions of its contacts and projects.
 	 */
 	interactionsOf(path: string): readonly Interaction[] {
 		const entity = this.entities.get(path);
 		if (entity?.type !== 'company') return this.linking(path, 'interaction');
 		const seen = new Set<Interaction>();
-		for (const related of [...this.linking(path, 'contact'), ...this.linking(path, 'deal')]) {
+		for (const related of [...this.linking(path, 'contact'), ...this.linking(path, 'project')]) {
 			for (const i of this.linking(related.path, 'interaction')) seen.add(i);
 		}
 		return [...seen].sort(byDateDesc);

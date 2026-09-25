@@ -6,10 +6,10 @@ import { renderWithCrm } from './fixtures';
 
 describe('validate', () => {
 	it('checks required and numeric fields', () => {
-		expect(validate(FIELDS.deal, {})).toBe('Name is required.');
-		expect(validate(FIELDS.deal, { name: 'X', value: 'abc' })).toBe('Value should be a number.');
-		expect(validate(FIELDS.deal, { name: 'X', probability: '40' })).toBe('Probability should be between 0 and 1.');
-		expect(validate(FIELDS.deal, { name: 'X', value: '12,000', probability: '0.4' })).toBeNull();
+		expect(validate(FIELDS.project, {})).toBe('Name is required.');
+		expect(validate(FIELDS.project, { name: 'X', value: 'abc' })).toBe('Value should be a number.');
+		expect(validate(FIELDS.project, { name: 'X', probability: '40' })).toBe('Probability should be between 0 and 1.');
+		expect(validate(FIELDS.project, { name: 'X', value: '12,000', probability: '0.4' })).toBeNull();
 	});
 });
 
@@ -17,7 +17,7 @@ describe('EntityForm', () => {
 	it('submits the entered values and body', async () => {
 		const onSubmit = vi.fn().mockResolvedValue(undefined);
 		renderWithCrm(
-			<EntityForm type="deal" initial={{ company: ['CRM/Companies/Acme Inc.md'] }} submitLabel="Create" bodyLabel="Notes" onSubmit={onSubmit} />,
+			<EntityForm type="project" initial={{ company: ['CRM/Companies/Acme Inc.md'] }} submitLabel="Create" bodyLabel="Notes" onSubmit={onSubmit} />,
 		);
 		expect(screen.getByText('Acme Inc')).toHaveClass('abc-chip');
 

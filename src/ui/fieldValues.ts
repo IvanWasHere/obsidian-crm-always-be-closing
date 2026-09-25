@@ -4,7 +4,11 @@ import type { Entity } from '../core/types';
 
 /** The value of a field as the UI edits it (see FieldValue). */
 export function readFieldValue(spec: FieldSpec, entity: Entity, crm: CrmSnapshot): FieldValue {
-	if (spec.kind === 'link' || spec.kind === 'links') return crm.linkedPaths(entity.path, spec.key);
+	if (spec.kind === 'link' || spec.kind === 'links' || spec.kind === 'assets') return crm.linkedPaths(entity.path, spec.key);
+	if (spec.kind === 'phases') {
+		const phases = entity.type === 'project' ? entity.phases : [];
+		return phases.map((p) => ({ name: p.name, deadline: p.deadline ?? '', done: p.done ? 'true' : '' }));
+	}
 	if (spec.kind === 'items') {
 		const items = entity.type === 'quote' || entity.type === 'invoice' ? entity.items : [];
 		return items.map((i) => ({ description: i.description, qty: String(i.qty), price: String(i.price), tax: String(i.tax) }));

@@ -19,6 +19,7 @@ import {
 	VIEW_TYPE_REPORTS,
 } from './obsidian/views';
 import { registerCommands } from './obsidian/commands';
+import { remindAboutMigration } from './obsidian/migrate';
 import { CrmIndex } from './core/CrmIndex';
 import { CrmRepository } from './core/CrmRepository';
 
@@ -38,11 +39,12 @@ export default class CrmPlugin extends Plugin {
 		this.index = new CrmIndex(this.app, getSettings);
 		this.repo = new CrmRepository(this.app, getSettings);
 		// Record stage changes made by editing frontmatter directly, for lead and win/loss stats.
-		this.index.onDealStageChange = (path, stage, previous) => {
+		this.index.onProjectStageChange = (path, stage, previous) => {
 			void this.repo.recordStage(path, stage, previous);
 		};
 		this.app.workspace.onLayoutReady(() => {
 			this.index.load();
+			remindAboutMigration(this);
 			// Keep the details panel docked in the right sidebar without stealing focus.
 			void this.app.workspace.ensureSideLeaf(VIEW_TYPE_ENTITY_PANEL, 'right', { active: false, reveal: false });
 		});

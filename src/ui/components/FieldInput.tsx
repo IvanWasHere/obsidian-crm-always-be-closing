@@ -1,4 +1,6 @@
-import type { FieldSpec, FieldValue, LineItemInput } from '../../core/fields';
+import type { FieldSpec, FieldValue, LineItemInput, PhaseInput } from '../../core/fields';
+import { PhasesEditor } from './PhasesEditor';
+import { AssetsEditor } from './AssetsEditor';
 import { LineItemsEditor } from './LineItemsEditor';
 import { EntityPicker } from './EntityPicker';
 import { useSettings } from '../hooks/useSettings';
@@ -34,6 +36,21 @@ export function FieldInput({ spec, value, onChange, onCommit, id, autoFocus }: P
 				onCommit={onCommit}
 			/>
 		);
+	}
+
+	if (spec.kind === 'phases') {
+		return (
+			<PhasesEditor
+				id={id}
+				value={Array.isArray(value) ? (value as PhaseInput[]) : []}
+				onChange={onChange}
+				onCommit={onCommit}
+			/>
+		);
+	}
+
+	if (spec.kind === 'assets') {
+		return <AssetsEditor id={id} value={Array.isArray(value) ? (value as string[]) : []} onChange={onChange} />;
 	}
 
 	if (spec.kind === 'link' || spec.kind === 'links') {

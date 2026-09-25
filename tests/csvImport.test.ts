@@ -121,7 +121,7 @@ describe('csv import', () => {
 describe('csv export', () => {
 	it('exports frontmatter keys with links as names', () => {
 		const { settings, index } = setup();
-		const [header, ...rows] = exportTable('deal', index.getSnapshot(), settings);
+		const [header, ...rows] = exportTable('project', index.getSnapshot(), settings);
 		expect(header).toEqual([
 			'name',
 			'company',
@@ -130,7 +130,10 @@ describe('csv export', () => {
 			'value',
 			'currency',
 			'expected_close',
+			'deadline',
 			'probability',
+			'phases',
+			'assets',
 			'path',
 		]);
 		expect(rows[0]).toEqual([
@@ -142,7 +145,10 @@ describe('csv export', () => {
 			'EUR',
 			'',
 			'',
-			'CRM/Deals/Acme - Pilot.md',
+			'',
+			'',
+			'',
+			'CRM/Projects/Acme - Pilot.md',
 		]);
 	});
 

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { buildReport, BUCKET_COUNTS, type Granularity, type Kpi, type Report } from '../../core/stats';
+import { buildReport, BUCKET_COUNTS, type Granularity, type Report } from '../../core/stats';
 import { formatDate } from '../../core/schema';
 import { INTERACTION_KINDS } from '../../core/types';
 import { formatMoney } from '../format';
 import { useCrm } from '../hooks/useCrm';
 import { useSettings } from '../hooks/useSettings';
-import { Icon } from '../components/Icon';
+import { StatTile } from '../components/StatTile';
 import { BarList } from '../charts/BarList';
 import { ChartCard, Legend, SeriesTable, type Series } from '../charts/ChartCard';
 import { TimeChart } from '../charts/TimeChart';
@@ -58,7 +58,7 @@ export function ReportsView() {
 				<StatTile label="Quotes sent" kpi={report.kpis.quotesSent} format={count} vs={vs} />
 				<StatTile label="Invoices sent" kpi={report.kpis.invoicesSent} format={count} vs={vs} />
 				<StatTile label="Revenue paid" kpi={report.kpis.revenuePaid} format={money} vs={vs} />
-				<StatTile label="Deals won" kpi={report.kpis.dealsWon} format={count} vs={vs} />
+				<StatTile label="Projects won" kpi={report.kpis.projectsWon} format={count} vs={vs} />
 				<StatTile label="Quote acceptance" kpi={report.kpis.acceptanceRate} format={percent} vs={vs} />
 				<StatTile label="Average time to payment" kpi={report.kpis.avgDaysToPay} format={days} vs={vs} upIsGood={false} />
 				<StatTile label="New contacts" kpi={report.kpis.newContacts} format={count} vs={vs} />
@@ -77,7 +77,7 @@ export function ReportsView() {
 
 			{report.excludedForCurrency > 0 && (
 				<p className="abc-muted abc-reports-note">
-					Money figures are in {report.currency}. {report.excludedForCurrency} deals, quotes or invoices in other
+					Money figures are in {report.currency}. {report.excludedForCurrency} projects, quotes or invoices in other
 					currencies are left out of them.
 				</p>
 			)}
@@ -89,55 +89,6 @@ export function ReportsView() {
 				<InteractionsChart report={report} subtitle={`Per ${granularity} · ${range}`} />
 				<PipelineChart report={report} money={money} />
 			</div>
-		</div>
-	);
-}
-
-/** Label, value and change against the previous range (arrow + sign + color, never color alone). */
-function StatTile({
-	label,
-	kpi,
-	format,
-	vs,
-	upIsGood = true,
-	warn = false,
-}: {
-	label: string;
-	kpi: Kpi;
-	format: (n: number) => string;
-	vs?: string;
-	upIsGood?: boolean;
-	warn?: boolean;
-}) {
-	const { value, previous } = kpi;
-	let delta: { text: string; tone: 'good' | 'bad' | 'flat'; icon: string } | null = null;
-	if (vs && value !== null && previous !== null) {
-		if (previous === 0) {
-			delta = value === 0 ? { text: 'No change', tone: 'flat', icon: 'minus' } : { text: 'New', tone: upIsGood ? 'good' : 'bad', icon: 'arrow-up' };
-		} else {
-			const change = (value - previous) / Math.abs(previous);
-			const up = change > 0;
-			delta =
-				Math.abs(change) < 0.005
-					? { text: 'No change', tone: 'flat', icon: 'minus' }
-					: {
-							text: `${up ? '+' : '−'}${Math.round(Math.abs(change) * 100)}%`,
-							tone: up === upIsGood ? 'good' : 'bad',
-							icon: up ? 'arrow-up' : 'arrow-down',
-						};
-		}
-	}
-	return (
-		<div className={`abc-stat${warn ? ' is-warning' : ''}`}>
-			<div className="abc-stat-label">
-				{warn && <Icon name="alert-triangle" />} {label}
-			</div>
-			<div className="abc-stat-value">{value === null ? '—' : format(value)}</div>
-			{delta && (
-				<div className={`abc-stat-delta is-${delta.tone}`} title={vs}>
-					<Icon name={delta.icon} /> {delta.text} <span className="abc-muted">{vs}</span>
-				</div>
-			)}
 		</div>
 	);
 }
@@ -182,8 +133,8 @@ function WonLostChart({ report, subtitle }: { report: Report; subtitle: string }
 		{ key: 'lost', label: 'Lost', slot: 2, values: report.counts.lost },
 	];
 	return (
-		<ChartCard title="Deals won and lost" subtitle={subtitle} legend={<Legend series={series} mark="rect" />} table={timeTable(report, series, count)}>
-			<TimeChart buckets={report.buckets} series={series} mode="columns" format={count} integer label="Deals won and lost per period" />
+		<ChartCard title="Projects won and lost" subtitle={subtitle} legend={<Legend series={series} mark="rect" />} table={timeTable(report, series, count)}>
+			<TimeChart buckets={report.buckets} series={series} mode="columns" format={count} integer label="Projects won and lost per period" />
 		</ChartCard>
 	);
 }
@@ -207,7 +158,7 @@ function PipelineChart({ report, money }: { report: Report; money: (n: number) =
 	const rows = report.pipelineByStage.map((s) => ({
 		label: s.stage,
 		value: s.value,
-		valueLabel: `${money(s.value)} · ${s.count} ${s.count === 1 ? 'deal' : 'deals'}`,
+		valueLabel: `${money(s.value)} · ${s.count} ${s.count === 1 ? 'project' : 'projects'}`,
 	}));
 	return (
 		<ChartCard
@@ -218,7 +169,7 @@ function PipelineChart({ report, money }: { report: Report; money: (n: number) =
 					<thead>
 						<tr>
 							<th>Stage</th>
-							<th className="abc-num">Deals</th>
+							<th className="abc-num">Projects</th>
 							<th className="abc-num">Value</th>
 						</tr>
 					</thead>
@@ -234,7 +185,7 @@ function PipelineChart({ report, money }: { report: Report; money: (n: number) =
 				</table>
 			}
 		>
-			<BarList rows={rows} label="Value of open deals in each pipeline stage" />
+			<BarList rows={rows} label="Value of open projects in each pipeline stage" />
 		</ChartCard>
 	);
 }

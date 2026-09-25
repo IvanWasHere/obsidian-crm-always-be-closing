@@ -70,12 +70,21 @@ export class Vault extends Events {
 		super();
 	}
 
+	getFiles(): TFile[] {
+		return [...[...this.notes.values()].map((n) => n.file), ...[...this.binaries.values()].map((b) => b.file)];
+	}
+
+	getResourcePath(file: TFile) {
+		return `app://local/${file.path}`;
+	}
+
 	getMarkdownFiles() {
 		return [...this.notes.values()].map((n) => n.file).filter((f) => f.extension === 'md');
 	}
 
 	getAbstractFileByPath(path: string): TAbstractFile | null {
 		if (this.notes.has(path)) return this.notes.get(path)!.file;
+		if (this.binaries.has(path)) return this.binaries.get(path)!.file;
 		if (this.folders.has(path)) return new TFolder(path);
 		return null;
 	}
@@ -177,8 +186,9 @@ export class MetadataCache extends Events {
 	}
 
 	getFirstLinkpathDest(linkpath: string, _sourcePath: string): TFile | null {
-		const withExt = /\.md$/i.test(linkpath) ? linkpath : `${linkpath}.md`;
-		const files = this.app.vault.getMarkdownFiles();
+		// `[[design.png]]` names its extension; `[[Note]]` means Note.md.
+		const withExt = /\.[a-z0-9]+$/i.test(linkpath) ? linkpath : `${linkpath}.md`;
+		const files = this.app.vault.getFiles();
 		return (
 			files.find((f) => f.path === withExt) ??
 			files.find((f) => f.path.endsWith(`/${withExt}`) || f.name === withExt) ??
@@ -195,6 +205,11 @@ export class MetadataCache extends Events {
 
 export class FileManager {
 	constructor(private app: App) {}
+
+	/** Moves a note (Obsidian would also rewrite links to it). */
+	async renameFile(file: TFile, newPath: string) {
+		this.app.vault.renameNote(file.path, newPath);
+	}
 
 	async processFrontMatter(file: TFile, fn: (fm: Frontmatter) => void) {
 		const note = this.app.vault.notes.get(file.path);

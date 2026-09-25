@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Notice } from 'obsidian';
 import type { CrmSnapshot } from '../../core/CrmSnapshot';
 import { fieldsFor, type FieldSpec, type FieldValue } from '../../core/fields';
-import type { Entity, EntityType, Interaction } from '../../core/types';
+import type { Entity, EntityType, Interaction, Project, Requirement } from '../../core/types';
 import { contextValues } from '../../obsidian/prefill';
 import { openCreateModal, openLogInteractionModal, openScheduleModal } from '../../obsidian/modals';
 import { exportMeetingIcs } from '../../obsidian/ics';
@@ -14,6 +14,9 @@ import { useSettings } from '../hooks/useSettings';
 import { FieldInput } from '../components/FieldInput';
 import { Icon } from '../components/Icon';
 import { NoteLink } from '../components/NoteLink';
+import { currentPhase, isOpenRequirement, projectDeadlines, requirementProgress, sortRequirements } from '../../core/projects';
+import { relativeDay } from '../format';
+import { formatDate } from '../../core/schema';
 import { BillingActions } from '../components/BillingActions';
 import { BillingStatus } from '../components/BillingStatus';
 import { formatMoney } from '../format';
@@ -21,10 +24,11 @@ import { formatMoney } from '../format';
 const TYPE_LABELS: Record<EntityType, string> = {
 	contact: 'Contact',
 	company: 'Company',
-	deal: 'Deal',
+	project: 'Project',
 	interaction: 'Interaction',
 	quote: 'Quote',
 	invoice: 'Invoice',
+	requirement: 'Requirement',
 };
 
 const KIND_ICONS: Record<Interaction['kind'], string> = {
@@ -42,7 +46,7 @@ export function EntityPanel() {
 	const entity = path ? crm.get(path) : undefined;
 
 	if (!entity) {
-		return <div className="abc-panel abc-empty">Open a CRM note (contact, company, deal, quote…) to see its details here.</div>;
+		return <div className="abc-panel abc-empty">Open a CRM note (contact, company, project, quote…) to see its details here.</div>;
 	}
 	// Remount per note so field drafts never leak between notes.
 	return <EntityDetails key={entity.path} entity={entity} crm={crm} />;
@@ -58,6 +62,7 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 			<div className="abc-panel-header">
 				<div className="abc-panel-type">{TYPE_LABELS[entity.type]}</div>
 				<h3 className="abc-panel-title">{entity.name}</h3>
+				{entity.type === 'project' && <ProjectSummary project={entity} crm={crm} />}
 				{(entity.type === 'quote' || entity.type === 'invoice') && (
 					<div className="abc-panel-subtitle">
 						<BillingStatus doc={entity} />
@@ -68,7 +73,7 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 					</div>
 				)}
 				<div className="abc-panel-actions">
-					{(entity.type === 'contact' || entity.type === 'deal') && (
+					{(entity.type === 'contact' || entity.type === 'project') && (
 						<>
 							<button onClick={() => openLogInteractionModal(plugin, contextValues(plugin, 'interaction'))}>
 								<Icon name="message-square-plus" /> Log interaction
@@ -78,17 +83,22 @@ function EntityDetails({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 							</button>
 						</>
 					)}
+					{(entity.type === 'project' || entity.type === 'requirement') && (
+						<button onClick={() => openCreateModal(plugin, 'requirement', contextValues(plugin, 'requirement'))}>
+							<Icon name="list-plus" /> Requirement
+						</button>
+					)}
 					{entity.type === 'company' && (
 						<>
 							<button onClick={() => openCreateModal(plugin, 'contact', { company: [entity.path] })}>
 								<Icon name="user-plus" /> Contact
 							</button>
-							<button onClick={() => openCreateModal(plugin, 'deal', { company: [entity.path] })}>
-								<Icon name="plus" /> Deal
+							<button onClick={() => openCreateModal(plugin, 'project', { company: [entity.path] })}>
+								<Icon name="plus" /> Project
 							</button>
 						</>
 					)}
-					{(entity.type === 'company' || entity.type === 'contact' || entity.type === 'deal') && (
+					{(entity.type === 'company' || entity.type === 'contact' || entity.type === 'project') && (
 						<>
 							<button onClick={() => openCreateModal(plugin, 'quote', contextValues(plugin, 'billing'))}>
 								<Icon name="file-text" /> Quote
@@ -159,14 +169,15 @@ function PanelField({
 	const save = (next: FieldValue) => {
 		if (sameValue(next, value)) return;
 		// Keep links to non-CRM notes: they aren't shown in the picker, so they can't have been removed on purpose.
-		repo.setField(entity.path, spec, next, spec.kind === 'links' ? unresolved : []).catch((err: unknown) => {
+		const keeps = spec.kind === 'links' || spec.kind === 'assets';
+		repo.setField(entity.path, spec, next, keeps ? unresolved : []).catch((err: unknown) => {
 			new Notice(err instanceof Error ? err.message : String(err));
 			setDraft(value);
 		});
 	};
 
 	// Text-like fields save on blur/Enter; pickers, dates and selects save right away.
-	const savesOnCommit = !['link', 'links', 'select', 'date', 'time', 'checkbox'].includes(spec.kind);
+	const savesOnCommit = !['link', 'links', 'assets', 'select', 'date', 'time', 'checkbox'].includes(spec.kind);
 
 	return (
 		<div className="abc-field">
@@ -183,8 +194,10 @@ function PanelField({
 			/>
 			{unresolved.length > 0 && (
 				<div className="abc-hint">
-					Not a CRM note: {unresolved.map((l) => `[[${l}]]`).join(', ')}
-					{spec.kind === 'links' ? ' (kept when you edit this field)' : ' (replaced if you pick one)'}
+					{spec.kind === 'assets' ? 'File not found' : 'Not a CRM note'}: {unresolved.map((l) => `[[${l}]]`).join(', ')}
+					{spec.kind === 'links' || spec.kind === 'assets'
+						? ' (kept when you edit this field)'
+						: ' (replaced if you pick one)'}
 				</div>
 			)}
 		</div>
@@ -196,7 +209,7 @@ function Related({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 		case 'contact':
 			return (
 				<>
-					<EntityList title="Deals" entities={crm.dealsOf(entity.path)} />
+					<EntityList title="Projects" entities={crm.projectsOf(entity.path)} />
 					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
 					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
 					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
@@ -206,15 +219,16 @@ function Related({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 			return (
 				<>
 					<EntityList title="Contacts" entities={crm.contactsOf(entity.path)} />
-					<EntityList title="Deals" entities={crm.dealsOf(entity.path)} />
+					<EntityList title="Projects" entities={crm.projectsOf(entity.path)} />
 					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
 					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
 					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
 				</>
 			);
-		case 'deal':
+		case 'project':
 			return (
 				<>
+					<Requirements project={entity} crm={crm} />
 					<EntityList title="Quotes" entities={crm.quotesOf(entity.path)} hideEmpty />
 					<EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />
 					<Timeline interactions={crm.interactionsOf(entity.path)} crm={crm} />
@@ -224,6 +238,7 @@ function Related({ entity, crm }: { entity: Entity; crm: CrmSnapshot }) {
 			return <EntityList title="Invoices" entities={crm.invoicesOf(entity.path)} hideEmpty />;
 		case 'interaction':
 		case 'invoice':
+		case 'requirement':
 			return null;
 	}
 }
@@ -251,7 +266,7 @@ function EntityList({ title, entities, hideEmpty }: { title: string; entities: r
 					{entities.map((e) => (
 						<li key={e.path}>
 							<NoteLink path={e.path}>{e.name}</NoteLink>
-							{e.type === 'deal' && <span className="abc-muted"> · {e.stage}</span>}
+							{e.type === 'project' && <span className="abc-muted"> · {e.stage}</span>}
 							{e.type === 'contact' && e.role && <span className="abc-muted"> · {e.role}</span>}
 							{(e.type === 'quote' || e.type === 'invoice') && (
 								<span className="abc-muted">
@@ -286,6 +301,86 @@ function Timeline({ interactions, crm }: { interactions: readonly Interaction[];
 						</li>
 					))}
 				</ol>
+			)}
+		</Section>
+	);
+}
+
+/** Current phase, requirement progress and the next thing due, under the project title. */
+function ProjectSummary({ project, crm }: { project: Project; crm: CrmSnapshot }) {
+	const today = formatDate(new Date());
+	const phase = currentPhase(project);
+	const progress = requirementProgress(crm.requirementsOf(project.path));
+	const next = projectDeadlines(project, crm)[0];
+	const parts = [
+		project.stage,
+		phase && `phase: ${phase.name}`,
+		progress.total > 0 && `${progress.done}/${progress.total} requirements done`,
+	].filter(Boolean);
+	return (
+		<div className="abc-panel-subtitle abc-muted">
+			{parts.join(' · ')}
+			{next && (
+				<div className={next.date < today ? 'abc-overdue' : undefined}>
+					<Icon name={next.date < today ? 'alert-triangle' : 'flag'} /> Next: {next.label}, {relativeDay(next.date, today)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+/** A project's requirements as a checklist: ticking one marks it done. */
+function Requirements({ project, crm }: { project: Project; crm: CrmSnapshot }) {
+	const { repo } = usePlugin();
+	const today = formatDate(new Date());
+	const list = sortRequirements(crm.requirementsOf(project.path));
+	const progress = requirementProgress(list);
+
+	const setStatus = (r: Requirement, status: Requirement['status']) => {
+		repo.updateFields(r.path, { status }).catch((err: unknown) => new Notice(err instanceof Error ? err.message : String(err)));
+	};
+
+	return (
+		<Section title="Requirements" count={list.length}>
+			{list.length === 0 ? (
+				<div className="abc-muted">None yet</div>
+			) : (
+				<>
+					<progress className="abc-progress" max={Math.max(progress.total, 1)} value={progress.done} aria-label="Requirements done" />
+					<ul className="abc-requirements">
+						{list.map((r) => {
+							const overdue = isOpenRequirement(r) && r.deadline !== undefined && r.deadline < today;
+							return (
+								<li key={r.path} className={`is-${r.status}`}>
+									<input
+										type="checkbox"
+										aria-label={`${r.name} done`}
+										checked={r.status === 'done'}
+										disabled={r.status === 'dropped'}
+										onChange={(e) => setStatus(r, e.target.checked ? 'done' : 'open')}
+									/>
+									<div>
+										<NoteLink path={r.path}>{r.name}</NoteLink>
+										<div className="abc-muted abc-requirement-meta">
+											{[
+												r.status !== 'open' && r.status !== 'done' ? r.status : '',
+												r.priority ? `${r.priority} priority` : '',
+											]
+												.filter(Boolean)
+												.join(' · ')}
+											{r.deadline && (
+												<span className={overdue ? 'abc-overdue' : undefined}>
+													{' '}
+													{overdue && <Icon name="alert-triangle" />} due {relativeDay(r.deadline, today)}
+												</span>
+											)}
+										</div>
+									</div>
+								</li>
+							);
+						})}
+					</ul>
+				</>
 			)}
 		</Section>
 	);

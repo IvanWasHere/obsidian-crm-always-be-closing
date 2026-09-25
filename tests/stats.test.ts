@@ -36,13 +36,13 @@ describe('buckets', () => {
 describe('buildReport', () => {
 	const notes = {
 		// Leads: entered "lead" this month (2) and last month (1).
-		'CRM/Deals/A.md': { type: 'crm-deal', stage: 'proposal', stage_history: ['2026-09-02 lead', '2026-09-10 proposal'] },
-		'CRM/Deals/B.md': { type: 'crm-deal', stage: 'won', value: 5000, stage_history: ['2026-09-05 lead', '2026-09-20 won'] },
-		'CRM/Deals/C.md': { type: 'crm-deal', stage: 'lost', stage_history: ['2026-08-15 lead', '2026-09-01 lost'] },
+		'CRM/Projects/A.md': { type: 'crm-project', stage: 'proposal', stage_history: ['2026-09-02 lead', '2026-09-10 proposal'] },
+		'CRM/Projects/B.md': { type: 'crm-project', stage: 'won', value: 5000, stage_history: ['2026-09-05 lead', '2026-09-20 won'] },
+		'CRM/Projects/C.md': { type: 'crm-project', stage: 'lost', stage_history: ['2026-08-15 lead', '2026-09-01 lost'] },
 		// No history: counts as entering its current stage on `created`.
-		'CRM/Deals/D.md': { type: 'crm-deal', stage: 'lead', created: '2026-09-24', value: 100 },
-		// Other currency: counted as a deal, left out of money.
-		'CRM/Deals/E.md': { type: 'crm-deal', stage: 'won', value: 999, currency: 'USD', stage_history: ['2026-09-21 won'] },
+		'CRM/Projects/D.md': { type: 'crm-project', stage: 'lead', created: '2026-09-24', value: 100 },
+		// Other currency: counted as a project, left out of money.
+		'CRM/Projects/E.md': { type: 'crm-project', stage: 'won', value: 999, currency: 'USD', stage_history: ['2026-09-21 won'] },
 
 		'CRM/Quotes/Q1.md': { type: 'crm-quote', number: 'Q-2026-0001', status: 'accepted', issued: '2026-09-03' },
 		'CRM/Quotes/Q2.md': { type: 'crm-quote', number: 'Q-2026-0002', status: 'declined', issued: '2026-09-04' },

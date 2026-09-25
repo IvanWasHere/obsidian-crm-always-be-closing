@@ -32,11 +32,11 @@ afterEach(() => {
 });
 
 describe('QuickLogModal', () => {
-	it('offers non-archived contacts and open deals', () => {
+	it('offers non-archived contacts and open projects', () => {
 		const { plugin: p } = plugin({
 			...SEED,
 			'CRM/Contacts/Gone.md': { type: 'crm-contact', status: 'archived' },
-			'CRM/Deals/Done.md': { type: 'crm-deal', stage: 'won' },
+			'CRM/Projects/Done.md': { type: 'crm-project', stage: 'won' },
 		});
 		const names = new QuickLogModal(p).getItems().map((e) => e.name);
 		expect(names).toEqual(['Jane Doe', 'John Smith', 'Maria Garcia', 'Acme – Pilot', 'Globex – Discovery']);
@@ -52,7 +52,7 @@ describe('QuickLogModal', () => {
 		expect(opened.title).toBe('Log interaction: Acme – Pilot');
 		ctx.rerender(<>{opened.render(() => {})}</>);
 		// Only kind, summary and notes are shown; links and date are filled in.
-		expect(screen.getAllByRole('combobox')).toHaveLength(1); // the Kind select; no contact/deal pickers
+		expect(screen.getAllByRole('combobox')).toHaveLength(1); // the Kind select; no contact/project pickers
 		expect(screen.queryByLabelText('Date')).toBeNull();
 
 		fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Pricing call' } });
@@ -64,7 +64,7 @@ describe('QuickLogModal', () => {
 			kind: 'call',
 			date: '2026-09-25',
 			contacts: ['[[Jane Doe]]', '[[Maria Garcia]]'],
-			deal: '[[Acme - Pilot]]',
+			project: '[[Acme - Pilot]]',
 			summary: 'Pricing call',
 		});
 	});

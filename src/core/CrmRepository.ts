@@ -3,8 +3,8 @@ import type { CrmSettings } from '../settings';
 import type { CrmSnapshot } from './CrmSnapshot';
 import { formatStageChange, parseStageHistory } from './billing';
 import { addDays } from './dates';
-import { fieldsFor, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues, type LineItemInput } from './fields';
-import { formatDate, type Frontmatter } from './schema';
+import { fieldsFor, isEmptyValue, type FieldSpec, type FieldValue, type FieldValues, type LineItemInput, type PhaseInput } from './fields';
+import { formatDate, typeFromTag, type Frontmatter } from './schema';
 import { interactionTitle, sanitizeFileName } from './templates';
 import {
 	INTERACTION_KINDS,
@@ -23,10 +23,11 @@ type CreatableType = Exclude<EntityType, 'interaction'>;
 const FOLDER_KEYS: Record<EntityType, keyof CrmSettings['folders']> = {
 	contact: 'contacts',
 	company: 'companies',
-	deal: 'deals',
+	project: 'projects',
 	interaction: 'interactions',
 	quote: 'quotes',
 	invoice: 'invoices',
+	requirement: 'requirements',
 };
 
 const text = (value: FieldValue | undefined) => (typeof value === 'string' ? value.trim() : '');
@@ -37,7 +38,7 @@ const today = () => formatDate(new Date());
 
 /**
  * Appends a stage change to `stage_history` unless it's already the latest entry.
- * With no history yet, `baseline` (the stage the deal was in before, and since when)
+ * With no history yet, `baseline` (the stage the project was in before, and since when)
  * is recorded first so the earlier stage isn't lost.
  */
 function appendStage(fm: Frontmatter, stage: string, date: string, baseline?: { stage: string; since?: string }) {
@@ -65,8 +66,8 @@ export class CrmRepository {
 	) {}
 
 	/**
-	 * Creates a contact, company, deal, quote or invoice note. Contacts,
-	 * companies and deals need a `name`; quotes and invoices a `number`
+	 * Creates a contact, company, project, quote or invoice note. Contacts,
+	 * companies and projects need a `name`; quotes and invoices a `number`
 	 * (their file is named `<number> <company>`).
 	 */
 	async createEntity(type: CreatableType, values: FieldValues, body = ''): Promise<TFile> {
@@ -77,7 +78,8 @@ export class CrmRepository {
 
 		const defaults: FieldValues = {};
 		if (type === 'contact') defaults.status = 'active';
-		if (type === 'deal') {
+		if (type === 'requirement') defaults.status = 'open';
+		if (type === 'project') {
 			defaults.stage = settings.pipelineStages[0] ?? 'lead';
 			if (!isEmptyValue(values.value)) defaults.currency = settings.defaultCurrency;
 		}
@@ -93,7 +95,7 @@ export class CrmRepository {
 		const fm = this.frontmatter(type, { ...defaults, ...withoutEmpty(values) }, path);
 		const date = today();
 		fm.created = date;
-		if (type === 'deal') appendStage(fm, fm.stage as string, date);
+		if (type === 'project') appendStage(fm, fm.stage as string, date);
 		return this.createNote(path, fm, body);
 	}
 
@@ -129,11 +131,11 @@ export class CrmRepository {
 
 	/**
 	 * Sets one field from a UI value; an empty value removes the key.
-	 * For `links` fields, `keepLinks` are link targets to keep as they are
+	 * For `links`/`assets` fields, `keepLinks` are link targets to keep as they are
 	 * (links the UI can't show because they don't point at a CRM note).
 	 */
 	setField(path: string, spec: FieldSpec, value: FieldValue | undefined, keepLinks: string[] = []): Promise<void> {
-		if (spec.kind === 'links' && keepLinks.length > 0) {
+		if ((spec.kind === 'links' || spec.kind === 'assets') && keepLinks.length > 0) {
 			const links = [...(this.toFrontmatter(spec, value ?? [], path) as string[]), ...keepLinks.map((l) => `[[${l}]]`)];
 			return this.updateFields(path, { [spec.key]: links });
 		}
@@ -144,7 +146,7 @@ export class CrmRepository {
 
 	/**
 	 * Sets or removes raw frontmatter fields (snake_case keys, as stored).
-	 * Changing a deal's `stage` also appends to its `stage_history`.
+	 * Changing a project's `stage` also appends to its `stage_history`.
 	 */
 	async updateFields(path: string, patch: FrontmatterPatch): Promise<void> {
 		const file = this.fileAt(path);
@@ -155,14 +157,16 @@ export class CrmRepository {
 				if (value === undefined || value === null) delete fm[key];
 				else fm[key] = value;
 			}
-			if (fm.type === TYPE_TAGS.deal && typeof patch.stage === 'string') {
+			// Writing `project` supersedes the pre-rename `deal` key.
+			if ('project' in patch) delete fm.deal;
+			if (typeFromTag(fm.type) === 'project' && typeof patch.stage === 'string') {
 				const since = typeof fm.created === 'string' ? fm.created : undefined;
 				appendStage(fm, patch.stage, today(), typeof previousStage === 'string' ? { stage: previousStage, since } : undefined);
 			}
 		});
 	}
 
-	moveDealStage(path: string, stage: string): Promise<void> {
+	moveProjectStage(path: string, stage: string): Promise<void> {
 		return this.updateFields(path, { stage });
 	}
 
@@ -205,7 +209,7 @@ export class CrmRepository {
 	}
 
 	/**
-	 * Creates a draft invoice from a quote (same company, contact, deal,
+	 * Creates a draft invoice from a quote (same company, contact, project,
 	 * currency and line items, linked back to the quote) and marks the
 	 * quote accepted if it was still open.
 	 */
@@ -216,7 +220,7 @@ export class CrmRepository {
 			number,
 			company: crm.linkedPaths(quote.path, 'company'),
 			contact: crm.linkedPaths(quote.path, 'contact'),
-			deal: crm.linkedPaths(quote.path, 'deal'),
+			project: crm.linkedPaths(quote.path, 'project'),
 			quote: [quote.path],
 			issued,
 			due: addDays(issued, billing.paymentTermsDays),
@@ -251,11 +255,13 @@ export class CrmRepository {
 	/** Converts a UI value to what gets stored: numbers, tag lists, wikilinks, line items. */
 	private toFrontmatter(spec: FieldSpec, value: FieldValue, sourcePath: string): unknown {
 		if (spec.kind === 'items') return toLineItems(value as LineItemInput[]);
+		if (spec.kind === 'phases') return toPhases(value as PhaseInput[]);
 		const list = (Array.isArray(value) ? value : [value]) as string[];
 		switch (spec.kind) {
 			case 'link':
 				return this.link(list[0]!, sourcePath);
 			case 'links':
+			case 'assets':
 				return list.map((p) => this.link(p, sourcePath));
 			case 'tags':
 				return list
@@ -322,6 +328,17 @@ function toLineItems(rows: LineItemInput[]): { description: string; qty: number;
 			qty: num(r.qty, 'quantity', i + 1, 1),
 			price: num(r.price, 'price', i + 1, 0),
 			tax: num(r.tax, 'tax', i + 1, 0),
+		}));
+}
+
+/** Phases as stored: unnamed rows dropped, `done` only when true. */
+function toPhases(rows: PhaseInput[]): { name: string; deadline?: string; done?: boolean }[] {
+	return rows
+		.filter((r) => r.name.trim() !== '')
+		.map((r) => ({
+			name: r.name.trim(),
+			...(r.deadline ? { deadline: r.deadline } : {}),
+			...(r.done === 'true' ? { done: true } : {}),
 		}));
 }
 

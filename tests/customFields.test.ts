@@ -48,9 +48,9 @@ describe('custom fields', () => {
 
 	it('cleans up saved custom fields', () => {
 		const settings = mergeSettings({
-			customFields: { deal: [{ key: 'source', kind: 'bogus' }, { label: 'no key' }, 'junk'] },
+			customFields: { project: [{ key: 'source', kind: 'bogus' }, { label: 'no key' }, 'junk'] },
 		});
-		expect(settings.customFields.deal).toEqual([{ key: 'source', label: 'source', kind: 'text' }]);
+		expect(settings.customFields.project).toEqual([{ key: 'source', label: 'source', kind: 'text' }]);
 		expect(settings.customFields.contact).toEqual([]);
 	});
 

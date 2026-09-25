@@ -666,6 +666,7 @@ body {
 	--abc-slot-3: #1baf7a;
 	--abc-slot-4: #eda100;
 	--abc-slot-5: #e87ba4;
+	--abc-slot-6: #008300;
 }
 
 body.theme-dark {
@@ -674,6 +675,7 @@ body.theme-dark {
 	--abc-slot-3: #199e70;
 	--abc-slot-4: #c98500;
 	--abc-slot-5: #d55181;
+	--abc-slot-6: #008300;
 }
 
 .abc-slot-1 { --abc-series: var(--abc-slot-1); }
@@ -681,6 +683,7 @@ body.theme-dark {
 .abc-slot-3 { --abc-series: var(--abc-slot-3); }
 .abc-slot-4 { --abc-series: var(--abc-slot-4); }
 .abc-slot-5 { --abc-series: var(--abc-slot-5); }
+.abc-slot-6 { --abc-series: var(--abc-slot-6); }
 
 /* ---------- Reports ---------- */
 
@@ -1434,5 +1437,142 @@ body.theme-dark {
 	.abc-day .abc-event {
 		width: auto;
 		padding: 2px;
+	}
+}
+
+/* ---------- Projects: phases, assets, requirements ---------- */
+
+.abc-phases,
+.abc-assets {
+	grid-column: 1 / -1;
+	min-width: 0;
+}
+
+.abc-phases ol {
+	margin: 0 0 var(--size-4-2);
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: var(--size-2-2);
+}
+
+.abc-phases li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: var(--size-2-3);
+}
+
+.abc-phases li.is-done input[type='text'] {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+.abc-phase-buttons {
+	display: flex;
+}
+
+.abc-phase-buttons button {
+	padding: 0 var(--size-2-2);
+	height: auto;
+}
+
+.abc-assets ul {
+	margin: 0 0 var(--size-4-2);
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: var(--size-2-2);
+}
+
+.abc-assets li {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-3);
+	min-width: 0;
+}
+
+.abc-assets li a {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.abc-asset-thumb {
+	width: 32px;
+	height: 32px;
+	object-fit: cover;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	flex: none;
+}
+
+.abc-asset-icon {
+	width: 32px;
+	justify-content: center;
+	color: var(--text-muted);
+	flex: none;
+}
+
+.abc-progress {
+	width: 100%;
+	height: 6px;
+	margin-bottom: var(--size-4-2);
+}
+
+.abc-requirements {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: var(--size-2-3);
+}
+
+.abc-requirements li {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-2-3);
+}
+
+.abc-requirements li.is-done a,
+.abc-requirements li.is-dropped a {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+.abc-requirement-meta {
+	font-size: var(--font-ui-smaller);
+}
+
+.is-phone .abc-phases li {
+	grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.is-phone .abc-phases li input[type='date'] {
+	grid-column: 2 / -1;
+}
+
+/* ---------- Dashboard invoice stats ---------- */
+
+.abc-invoice-stats {
+	container-type: inline-size;
+}
+
+.abc-invoice-stats .abc-toolbar h3 {
+	flex: 1;
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+/* Four tiles: one row when there's room, otherwise two by two (never 3 + 1). */
+.abc-invoice-stats .abc-kpis {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 640px) {
+	.abc-invoice-stats .abc-kpis {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 }

@@ -17,7 +17,7 @@ describe('EntityPanel', () => {
 		expect(screen.getByText(/Open a CRM note/)).toBeInTheDocument();
 	});
 
-	it('shows a contact with its fields, deals and interactions', () => {
+	it('shows a contact with its fields, projects and interactions', () => {
 		const ctx = renderWithCrm(<EntityPanel />);
 		open(ctx, JANE);
 
@@ -26,8 +26,8 @@ describe('EntityPanel', () => {
 		expect(screen.getByLabelText('Next follow-up')).toHaveValue('2026-10-01');
 		expect(screen.getByText('Acme Inc')).toHaveClass('abc-chip');
 
-		const deals = screen.getByRole('heading', { name: /Deals/ }).closest('section')!;
-		expect(within(deals).getByText('Acme – Pilot')).toBeInTheDocument();
+		const projects = screen.getByRole('heading', { name: /Projects/ }).closest('section')!;
+		expect(within(projects).getByText('Acme – Pilot')).toBeInTheDocument();
 		const timeline = screen.getByRole('heading', { name: /Interactions/ }).closest('section')!;
 		expect(within(timeline).getByText('2026-09-20 Call with Jane Doe')).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: /Log interaction/ })).toBeInTheDocument();
@@ -72,14 +72,14 @@ describe('EntityPanel', () => {
 	it('keeps links to non-CRM notes when editing a multi-link field', async () => {
 		const ctx = renderWithCrm(<EntityPanel />, {
 			...SEED,
-			'CRM/Deals/Mixed.md': { type: 'crm-deal', stage: 'lead', contacts: ['[[Jane Doe]]', '[[Someone Else]]'] },
+			'CRM/Projects/Mixed.md': { type: 'crm-project', stage: 'lead', contacts: ['[[Jane Doe]]', '[[Someone Else]]'] },
 		});
-		open(ctx, 'CRM/Deals/Mixed.md');
+		open(ctx, 'CRM/Projects/Mixed.md');
 		expect(screen.getByText(/\[\[Someone Else\]\] \(kept when you edit this field\)/)).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Remove Jane Doe' }));
 		await waitFor(() =>
-			expect(ctx.app.vault.readNote('CRM/Deals/Mixed.md')?.frontmatter?.contacts).toEqual(['[[Someone Else]]']),
+			expect(ctx.app.vault.readNote('CRM/Projects/Mixed.md')?.frontmatter?.contacts).toEqual(['[[Someone Else]]']),
 		);
 	});
 

@@ -34,8 +34,8 @@ export const SEED: Record<string, Record<string, unknown>> = {
 		company: '[[Acme Inc]]',
 		last_contacted: '2026-09-10',
 	},
-	'CRM/Deals/Acme - Pilot.md': {
-		type: 'crm-deal',
+	'CRM/Projects/Acme - Pilot.md': {
+		type: 'crm-project',
 		name: 'Acme – Pilot',
 		company: '[[Acme Inc]]',
 		contacts: ['[[Jane Doe]]', '[[Maria Garcia]]'],
@@ -43,8 +43,8 @@ export const SEED: Record<string, Record<string, unknown>> = {
 		value: 12000,
 		currency: 'EUR',
 	},
-	'CRM/Deals/Globex - Discovery.md': {
-		type: 'crm-deal',
+	'CRM/Projects/Globex - Discovery.md': {
+		type: 'crm-project',
 		name: 'Globex – Discovery',
 		company: '[[Globex]]',
 		contacts: ['[[John Smith]]'],
@@ -55,14 +55,14 @@ export const SEED: Record<string, Record<string, unknown>> = {
 		kind: 'email',
 		date: '2026-09-10',
 		contacts: ['[[Maria Garcia]]'],
-		deal: '[[Acme - Pilot]]',
+		project: '[[Acme - Pilot]]',
 	},
 	'CRM/Interactions/2026-09-20 Call with Jane Doe.md': {
 		type: 'crm-interaction',
 		kind: 'call',
 		date: '2026-09-20',
 		contacts: ['[[Jane Doe]]'],
-		deal: '[[Acme - Pilot]]',
+		project: '[[Acme - Pilot]]',
 	},
 };
 

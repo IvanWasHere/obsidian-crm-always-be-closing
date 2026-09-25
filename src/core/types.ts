@@ -4,18 +4,30 @@
  * snake_case (see FIELD keys in schema.ts and templates.ts).
  */
 
-export type EntityType = 'contact' | 'company' | 'deal' | 'interaction' | 'quote' | 'invoice';
+export type EntityType = 'contact' | 'company' | 'project' | 'interaction' | 'quote' | 'invoice' | 'requirement';
 
-export const ENTITY_TYPES: readonly EntityType[] = ['contact', 'company', 'deal', 'interaction', 'quote', 'invoice'];
+export const ENTITY_TYPES: readonly EntityType[] = [
+	'contact',
+	'company',
+	'project',
+	'interaction',
+	'quote',
+	'invoice',
+	'requirement',
+];
+
+/** `type` values from older versions, still read (see the "migrate deals" command). */
+export const LEGACY_TYPE_TAGS: Record<string, EntityType> = { 'crm-deal': 'project' };
 
 /** Value of the `type` frontmatter field for each entity type. */
 export const TYPE_TAGS: Record<EntityType, string> = {
 	contact: 'crm-contact',
 	company: 'crm-company',
-	deal: 'crm-deal',
+	project: 'crm-project',
 	interaction: 'crm-interaction',
 	quote: 'crm-quote',
 	invoice: 'crm-invoice',
+	requirement: 'crm-requirement',
 };
 
 export const CONTACT_STATUSES = ['active', 'cold', 'archived'] as const;
@@ -26,6 +38,12 @@ export type InteractionKind = (typeof INTERACTION_KINDS)[number];
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
+export const REQUIREMENT_STATUSES = ['open', 'in-progress', 'done', 'dropped'] as const;
+export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
+
+export const PRIORITIES = ['high', 'medium', 'low'] as const;
+export type Priority = (typeof PRIORITIES)[number];
 
 export const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'void'] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
@@ -76,8 +94,8 @@ export interface Company extends EntityBase {
 	taxId?: string;
 }
 
-export interface Deal extends EntityBase {
-	type: 'deal';
+export interface Project extends EntityBase {
+	type: 'project';
 	company?: Wikilink;
 	contacts: Wikilink[];
 	stage: string;
@@ -86,8 +104,29 @@ export interface Deal extends EntityBase {
 	expectedClose?: DateString;
 	/** 0–1 */
 	probability?: number;
-	/** Stage changes, oldest first. May be empty for deals created before tracking. */
+	/** Stage changes, oldest first. May be empty for projects created before tracking. */
 	stageHistory: StageChange[];
+	/** Overall delivery deadline. */
+	deadline?: DateString;
+	/** Delivery phases in order, each with its own deadline. */
+	phases: Phase[];
+	/** Links to vault files (designs, contracts, images…); `|alias` is the label. */
+	assets: Wikilink[];
+}
+
+export interface Phase {
+	name: string;
+	deadline?: DateString;
+	done: boolean;
+}
+
+/** A requirement is its own note, linked to a project; the note body is its description. */
+export interface Requirement extends EntityBase {
+	type: 'requirement';
+	project?: Wikilink;
+	status: RequirementStatus;
+	priority?: Priority;
+	deadline?: DateString;
 }
 
 export interface StageChange {
@@ -105,7 +144,7 @@ export interface Interaction extends EntityBase {
 	duration?: number;
 	location?: string;
 	contacts: Wikilink[];
-	deal?: Wikilink;
+	project?: Wikilink;
 	summary?: string;
 }
 
@@ -127,7 +166,7 @@ interface BillingBase extends EntityBase {
 	number?: string;
 	company?: Wikilink;
 	contact?: Wikilink;
-	deal?: Wikilink;
+	project?: Wikilink;
 	/** Date the document was sent (or is dated). */
 	issued?: DateString;
 	currency?: string;
@@ -150,6 +189,6 @@ export interface Invoice extends BillingBase {
 	quote?: Wikilink;
 }
 
-export type Entity = Contact | Company | Deal | Interaction | Quote | Invoice;
+export type Entity = Contact | Company | Project | Interaction | Quote | Invoice | Requirement;
 
 export type EntityOfType<T extends EntityType> = Extract<Entity, { type: T }>;

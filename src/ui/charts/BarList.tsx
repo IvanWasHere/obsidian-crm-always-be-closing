@@ -4,7 +4,7 @@ import { barPath } from './scale';
 export interface BarRow {
 	label: string;
 	value: number;
-	/** Text at the bar's end, e.g. `€12,000 · 3 deals`. */
+	/** Text at the bar's end, e.g. `€12,000 · 3 projects`. */
 	valueLabel: string;
 }
 

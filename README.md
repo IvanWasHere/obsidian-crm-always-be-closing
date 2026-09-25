@@ -1,6 +1,6 @@
 # Always Be Closing
 
-A personal CRM for Obsidian. Contacts, companies, deals and interactions are plain Markdown notes with frontmatter; the plugin adds React views on top. See [plan.md](plan.md).
+A personal CRM for Obsidian. Contacts, companies, projects and interactions are plain Markdown notes with frontmatter; the plugin adds React views on top. See [plan.md](plan.md).
 
 ## Development
 

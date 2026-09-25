@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, daysBetween } from '../src/core/dates';
 import { closingSoon, followUps, isClosedStage, staleContacts, totalsByCurrency } from '../src/core/insights';
-import type { Deal } from '../src/core/types';
+import type { Project } from '../src/core/types';
 import { setup } from './fixtures';
 
 const TODAY = '2026-09-25';
@@ -50,19 +50,19 @@ describe('insights', () => {
 		expect(names(staleContacts(index.getSnapshot(), TODAY, 30))).toEqual(['Never', 'Older', 'Old']);
 	});
 
-	it('lists open deals closing soon, including overdue ones', () => {
+	it('lists open projects closing soon, including overdue ones', () => {
 		const { index } = setup({
-			'CRM/Deals/A.md': { stage: 'proposal', expected_close: '2026-10-20' },
-			'CRM/Deals/B.md': { stage: 'lead', expected_close: '2026-09-01' },
-			'CRM/Deals/C.md': { stage: 'won', expected_close: '2026-09-30' },
-			'CRM/Deals/D.md': { stage: 'lead', expected_close: '2026-12-01' },
-			'CRM/Deals/E.md': { stage: 'lead' },
+			'CRM/Projects/A.md': { stage: 'proposal', expected_close: '2026-10-20' },
+			'CRM/Projects/B.md': { stage: 'lead', expected_close: '2026-09-01' },
+			'CRM/Projects/C.md': { stage: 'won', expected_close: '2026-09-30' },
+			'CRM/Projects/D.md': { stage: 'lead', expected_close: '2026-12-01' },
+			'CRM/Projects/E.md': { stage: 'lead' },
 		});
 		expect(names(closingSoon(index.getSnapshot(), TODAY, 30))).toEqual(['B', 'A']);
 	});
 
 	it('sums values per currency', () => {
-		const deals = [{ value: 100, currency: 'USD' }, { value: 50 }, { value: 25, currency: 'USD' }, {}] as Deal[];
-		expect(totalsByCurrency(deals, 'EUR')).toEqual({ USD: 125, EUR: 50 });
+		const projects = [{ value: 100, currency: 'USD' }, { value: 50 }, { value: 25, currency: 'USD' }, {}] as Project[];
+		expect(totalsByCurrency(projects, 'EUR')).toEqual({ USD: 125, EUR: 50 });
 	});
 });

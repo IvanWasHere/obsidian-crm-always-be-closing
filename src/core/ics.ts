@@ -48,7 +48,7 @@ function uid(path: string): string {
  */
 function vevent(i: Interaction, crm: CrmSnapshot, stamp: string): string[] {
 	const contacts = crm.contactsOf(i.path);
-	const deal = crm.dealOf(i.path);
+	const project = crm.projectOf(i.path);
 	const lines = ['BEGIN:VEVENT', `UID:${uid(i.path)}`, `DTSTAMP:${stamp}`];
 	if (i.time) {
 		const start = minutes(i.time);
@@ -63,7 +63,7 @@ function vevent(i: Interaction, crm: CrmSnapshot, stamp: string): string[] {
 	if (i.location) lines.push(`LOCATION:${escape(i.location)}`);
 	const description = [
 		contacts.length ? `With: ${contacts.map((c) => c.name).join(', ')}` : '',
-		deal ? `Deal: ${deal.name}` : '',
+		project ? `Project: ${project.name}` : '',
 	].filter(Boolean);
 	if (description.length) lines.push(`DESCRIPTION:${escape(description.join('\n'))}`);
 	for (const c of contacts) {

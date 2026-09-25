@@ -1,11 +1,11 @@
 import { useMemo, type ReactNode } from 'react';
 import { Notice } from 'obsidian';
 import { addDays } from '../../core/dates';
-import { closingSoon, followUps, openDeals, staleContacts, totalsByCurrency } from '../../core/insights';
+import { closingSoon, followUps, openProjects, staleContacts, totalsByCurrency } from '../../core/insights';
 import { isOverdue } from '../../core/billing';
 import { calendarEvents } from '../../core/calendar';
 import { formatDate } from '../../core/schema';
-import type { Contact, Deal, Invoice } from '../../core/types';
+import type { Contact, Project, Invoice } from '../../core/types';
 import { openLogInteractionModal } from '../../obsidian/modals';
 import { formatMoney, formatTotals, relativeDay } from '../format';
 import { useCrm } from '../hooks/useCrm';
@@ -13,8 +13,9 @@ import { usePlugin } from '../hooks/usePlugin';
 import { useSettings } from '../hooks/useSettings';
 import { Icon } from '../components/Icon';
 import { NoteLink } from '../components/NoteLink';
+import { InvoiceStats } from '../components/InvoiceStats';
 
-/** Deals expected to close within this many days are listed. */
+/** Projects expected to close within this many days are listed. */
 const CLOSING_WINDOW_DAYS = 30;
 
 /** Home view: what needs attention today. */
@@ -26,18 +27,13 @@ export function DashboardView() {
 	const due = useMemo(() => followUps(crm, today), [crm, today]);
 	const stale = useMemo(() => staleContacts(crm, today, staleAfterDays), [crm, today, staleAfterDays]);
 	const closing = useMemo(() => closingSoon(crm, today, CLOSING_WINDOW_DAYS), [crm, today]);
-	const open = useMemo(() => openDeals(crm), [crm]);
+	const open = useMemo(() => openProjects(crm), [crm]);
 	const meetings = useMemo(
 		() => calendarEvents(crm, today, addDays(today, 7), today, new Set(['meeting'])),
 		[crm, today],
 	);
 	const unpaid = crm.all('invoice').filter((i) => i.status === 'sent');
 	const overdue = unpaid.filter((i) => isOverdue(i, today)).sort((a, b) => (a.due ?? '').localeCompare(b.due ?? ''));
-	const outstanding: Record<string, number> = {};
-	for (const i of unpaid) {
-		const c = i.currency ?? defaultCurrency;
-		outstanding[c] = (outstanding[c] ?? 0) + i.totals.gross;
-	}
 
 	const nothingDue = due.overdue.length + due.today.length + due.thisWeek.length === 0;
 
@@ -46,14 +42,15 @@ export function DashboardView() {
 			<div className="abc-stats">
 				<Stat id="contacts" label="Contacts" value={crm.all('contact').filter((c) => c.status !== 'archived').length} />
 				<Stat id="companies" label="Companies" value={crm.count('company')} />
-				<Stat id="open-deals" label="Open deals" value={open.length} />
+				<Stat id="open-projects" label="Open projects" value={open.length} />
 				<Stat
 					id="pipeline"
 					label="Open pipeline"
 					value={formatTotals(totalsByCurrency(open, defaultCurrency)) || '—'}
 				/>
-				{unpaid.length > 0 && <Stat id="outstanding" label="Outstanding invoices" value={formatTotals(outstanding)} />}
 			</div>
+
+			{crm.count('invoice') > 0 && <InvoiceStats />}
 
 			{overdue.length > 0 && (
 				<Panel title="Overdue invoices" icon="alert-triangle" count={overdue.length}>
@@ -119,11 +116,11 @@ export function DashboardView() {
 
 			<Panel title="Closing soon" icon="target" count={closing.length}>
 				{closing.length === 0 ? (
-					<div className="abc-muted">No open deals expected to close in the next {CLOSING_WINDOW_DAYS} days.</div>
+					<div className="abc-muted">No open projects expected to close in the next {CLOSING_WINDOW_DAYS} days.</div>
 				) : (
 					<ul className="abc-rows">
 						{closing.map((d) => (
-							<DealRow key={d.path} deal={d} today={today} defaultCurrency={defaultCurrency} />
+							<ProjectRow key={d.path} project={d} today={today} defaultCurrency={defaultCurrency} />
 						))}
 					</ul>
 				)}
@@ -236,20 +233,20 @@ function ScheduleButton({ contact, today }: { contact: Contact; today: string })
 	);
 }
 
-function DealRow({ deal, today, defaultCurrency }: { deal: Deal; today: string; defaultCurrency: string }) {
+function ProjectRow({ project, today, defaultCurrency }: { project: Project; today: string; defaultCurrency: string }) {
 	const crm = useCrm();
-	const company = crm.companyOf(deal.path);
-	const overdue = deal.expectedClose! < today;
+	const company = crm.companyOf(project.path);
+	const overdue = project.expectedClose! < today;
 	return (
 		<li className="abc-row">
 			<div className="abc-row-main">
-				<NoteLink path={deal.path}>{deal.name}</NoteLink>
+				<NoteLink path={project.path}>{project.name}</NoteLink>
 				{company && <span className="abc-muted"> · {company.name}</span>}
 				<div className="abc-row-detail abc-muted">
-					{deal.stage}
-					{deal.value !== undefined && <> · {formatMoney(deal.value, deal.currency ?? defaultCurrency)}</>}
+					{project.stage}
+					{project.value !== undefined && <> · {formatMoney(project.value, project.currency ?? defaultCurrency)}</>}
 					{' · '}
-					<span className={overdue ? 'abc-overdue' : undefined}>closes {relativeDay(deal.expectedClose!, today)}</span>
+					<span className={overdue ? 'abc-overdue' : undefined}>closes {relativeDay(project.expectedClose!, today)}</span>
 				</div>
 			</div>
 		</li>

@@ -10,7 +10,7 @@ const rows = () =>
 		.map((r) => within(r).getAllByRole('cell').map((c) => c.textContent));
 
 describe('CompaniesView', () => {
-	it('rolls up contacts, open deals, pipeline and last interaction', () => {
+	it('rolls up contacts, open projects, pipeline and last interaction', () => {
 		renderWithCrm(<CompaniesView />);
 		const [acme, globex] = rows();
 		expect(acme!.slice(0, 4)).toEqual(['Acme Inc', '', '2', '1']);
@@ -20,10 +20,10 @@ describe('CompaniesView', () => {
 		expect(globex![5]).toBe('');
 	});
 
-	it('leaves closed deals out of the rollup', () => {
+	it('leaves closed projects out of the rollup', () => {
 		renderWithCrm(<CompaniesView />, {
 			...SEED,
-			'CRM/Deals/Acme - Old.md': { type: 'crm-deal', company: '[[Acme Inc]]', stage: 'won', value: 99 },
+			'CRM/Projects/Acme - Old.md': { type: 'crm-project', company: '[[Acme Inc]]', stage: 'won', value: 99 },
 		});
 		expect(rows()[0]!.slice(0, 4)).toEqual(['Acme Inc', '', '2', '1']);
 	});

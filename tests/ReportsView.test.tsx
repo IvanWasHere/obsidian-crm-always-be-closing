@@ -14,8 +14,8 @@ afterEach(() => {
 
 const NOTES = {
 	...SEED,
-	'CRM/Deals/New.md': { type: 'crm-deal', stage: 'lead', stage_history: ['2026-09-24 lead'], value: 1000 },
-	'CRM/Deals/Old.md': { type: 'crm-deal', stage: 'won', stage_history: ['2026-08-10 lead', '2026-09-02 won'], value: 4000 },
+	'CRM/Projects/New.md': { type: 'crm-project', stage: 'lead', stage_history: ['2026-09-24 lead'], value: 1000 },
+	'CRM/Projects/Old.md': { type: 'crm-project', stage: 'won', stage_history: ['2026-08-10 lead', '2026-09-02 won'], value: 4000 },
 	'CRM/Quotes/Q.md': { type: 'crm-quote', status: 'accepted', issued: '2026-09-03', total: 100 },
 	'CRM/Invoices/I.md': { type: 'crm-invoice', status: 'paid', issued: '2026-09-05', paid_on: '2026-09-15', total: 4000 },
 };
@@ -37,7 +37,7 @@ describe('ReportsView', () => {
 		renderWithCrm(<ReportsView />, NOTES);
 		expect(screen.getByText('Showing the last 12 months')).toBeInTheDocument();
 		expect(within(tile('Leads')).getByText('2')).toBeInTheDocument();
-		expect(within(tile('Deals won')).getByText('1')).toBeInTheDocument();
+		expect(within(tile('Projects won')).getByText('1')).toBeInTheDocument();
 		expect(within(tile('Quote acceptance')).getByText('100%')).toBeInTheDocument();
 		expect(within(tile('Average time to payment')).getByText('10 days')).toBeInTheDocument();
 		expect(within(tile('Revenue paid')).getByText(/4,000/)).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('ReportsView', () => {
 	it('shows the open pipeline by stage with values at the bar ends', () => {
 		renderWithCrm(<ReportsView />, NOTES);
 		const pipeline = screen.getByRole('figure', { name: 'Open pipeline by stage' });
-		expect(within(pipeline).getByText(/12,000 · 1 deal$/)).toBeInTheDocument();
-		expect(within(pipeline).getAllByText(/0 · 0 deals$/)).toHaveLength(2);
+		expect(within(pipeline).getByText(/12,000 · 1 project$/)).toBeInTheDocument();
+		expect(within(pipeline).getAllByText(/0 · 0 projects$/)).toHaveLength(2);
 	});
 });

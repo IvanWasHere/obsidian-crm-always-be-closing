@@ -24,7 +24,7 @@ const NOTES = {
 		duration: 45,
 		location: 'Acme HQ, Room 2',
 		contacts: ['[[Jane Doe]]'],
-		deal: '[[Acme - Pilot]]',
+		project: '[[Acme - Pilot]]',
 		summary: 'Pilot review',
 	},
 	'CRM/Interactions/2026-10-01 Call with John Smith.md': {
@@ -34,7 +34,7 @@ const NOTES = {
 		contacts: ['[[John Smith]]'],
 	},
 	'CRM/Invoices/I.md': { type: 'crm-invoice', number: 'INV-1', status: 'sent', due: '2026-09-20', total: 10 },
-	'CRM/Deals/Acme - Pilot.md': { ...SEED['CRM/Deals/Acme - Pilot.md'], expected_close: '2026-09-30' },
+	'CRM/Projects/Acme - Pilot.md': { ...SEED['CRM/Projects/Acme - Pilot.md'], expected_close: '2026-09-30' },
 };
 
 describe('time field', () => {
@@ -47,7 +47,7 @@ describe('time field', () => {
 });
 
 describe('calendarEvents', () => {
-	it('collects meetings, activity, follow-ups, invoice dues and deal closes', () => {
+	it('collects meetings, activity, follow-ups, invoice dues and project closes', () => {
 		const { index } = setup(NOTES);
 		const events = calendarEvents(index.getSnapshot(), '2026-09-01', '2026-10-06', TODAY);
 		expect(events.map((e) => [e.date, e.category, e.title, e.overdue ?? false])).toEqual([
@@ -56,7 +56,7 @@ describe('calendarEvents', () => {
 			['2026-09-20', 'invoice-due', 'INV-1 due', true],
 			['2026-09-20', 'interaction', 'Call with Jane Doe', false],
 			['2026-09-29', 'meeting', 'Pilot review', false],
-			['2026-09-30', 'deal-close', 'Close: Acme – Pilot', false],
+			['2026-09-30', 'project-close', 'Close: Acme – Pilot', false],
 			['2026-10-01', 'meeting', 'Call with John Smith', false], // future call → scheduled
 			['2026-10-01', 'follow-up', 'Follow up: Jane Doe', false],
 		]);
@@ -114,7 +114,7 @@ describe('toIcs', () => {
 		expect(lines).toContain('DTSTAMP:20260925T100000Z');
 		expect(lines).toContain('SUMMARY:Pilot review');
 		expect(lines).toContain('LOCATION:Acme HQ\\, Room 2');
-		expect(lines).toContain('DESCRIPTION:With: Jane Doe\\nDeal: Acme – Pilot');
+		expect(lines).toContain('DESCRIPTION:With: Jane Doe\\nProject: Acme – Pilot');
 		expect(lines).toContain('ATTENDEE;CN=Jane Doe;RSVP=TRUE:mailto:jane@acme.com');
 		expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
 		expect(lines.every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true);

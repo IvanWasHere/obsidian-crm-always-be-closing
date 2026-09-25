@@ -13,14 +13,15 @@ describe('EntityForm fields', () => {
 	});
 
 	it('includes custom fields, with select options', () => {
-		renderWithCrm(<EntityForm type="deal" submitLabel="Create" onSubmit={async () => {}} />, undefined, {
+		renderWithCrm(<EntityForm type="project" submitLabel="Create" onSubmit={async () => {}} />, undefined, {
 			customFields: {
 				contact: [],
 				company: [],
-				deal: [{ key: 'source', label: 'Source', kind: 'select', options: ['Referral', 'Inbound'] }],
+				project: [{ key: 'source', label: 'Source', kind: 'select', options: ['Referral', 'Inbound'] }],
 				interaction: [],
 				quote: [],
 				invoice: [],
+				requirement: [],
 			},
 		});
 		expect([...screen.getByLabelText('Source').querySelectorAll('option')].map((o) => o.textContent)).toEqual([

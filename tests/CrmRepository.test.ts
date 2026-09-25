@@ -15,7 +15,7 @@ afterEach(() => {
 const JANE = 'CRM/Contacts/Jane Doe.md';
 const MARIA = 'CRM/Contacts/Maria Garcia.md';
 const ACME = 'CRM/Companies/Acme Inc.md';
-const PILOT = 'CRM/Deals/Acme - Pilot.md';
+const PILOT = 'CRM/Projects/Acme - Pilot.md';
 
 describe('CrmRepository', () => {
 	it('creates a contact with a link to its company, in field order', async () => {
@@ -57,16 +57,16 @@ describe('CrmRepository', () => {
 		expect([a.path, b.path, c.path]).toEqual(['Clients/Acme Inc.md', 'Clients/Acme Inc 2.md', 'Clients/Foo Bar Baz.md']);
 	});
 
-	it('creates a deal with defaults from settings', async () => {
+	it('creates a project with defaults from settings', async () => {
 		const { app, repo } = setup();
-		const file = await repo.createEntity('deal', {
+		const file = await repo.createEntity('project', {
 			name: 'Acme – Expansion',
 			company: [ACME],
 			contacts: [JANE],
 			value: '5,000',
 		});
 		expect(app.vault.readNote(file.path)?.frontmatter).toEqual({
-			type: 'crm-deal',
+			type: 'crm-project',
 			name: 'Acme – Expansion',
 			company: '[[Acme Inc]]',
 			contacts: ['[[Jane Doe]]'],
@@ -80,13 +80,13 @@ describe('CrmRepository', () => {
 
 	it('rejects non-numeric numbers', async () => {
 		const { repo } = setup();
-		await expect(repo.createEntity('deal', { name: 'X', value: 'lots' })).rejects.toThrow('Value should be a number');
+		await expect(repo.createEntity('project', { name: 'X', value: 'lots' })).rejects.toThrow('Value should be a number');
 	});
 
 	it('logs an interaction and moves last_contacted forward only', async () => {
 		const { app, repo, index } = setup();
 		const file = await repo.logInteraction(
-			{ kind: 'meeting', date: '2026-09-15', contacts: [JANE, MARIA], deal: [PILOT], summary: 'Pilot kickoff' },
+			{ kind: 'meeting', date: '2026-09-15', contacts: [JANE, MARIA], project: [PILOT], summary: 'Pilot kickoff' },
 			'Agenda',
 		);
 
@@ -98,7 +98,7 @@ describe('CrmRepository', () => {
 					kind: 'meeting',
 					date: '2026-09-15',
 					contacts: ['[[Jane Doe]]', '[[Maria Garcia]]'],
-					deal: '[[Acme - Pilot]]',
+					project: '[[Acme - Pilot]]',
 					summary: 'Pilot kickoff',
 				},
 				body: 'Agenda',
@@ -122,9 +122,9 @@ describe('CrmRepository', () => {
 		const { app, repo } = setup();
 		await repo.setField(JANE, fieldSpec('contact', 'role')!, ' COO ');
 		await repo.setField(JANE, fieldSpec('contact', 'next_follow_up')!, '');
-		await repo.setField(PILOT, fieldSpec('deal', 'contacts')!, [JANE]);
-		await repo.setField(PILOT, fieldSpec('deal', 'probability')!, '0.5');
-		await repo.moveDealStage(PILOT, 'negotiation');
+		await repo.setField(PILOT, fieldSpec('project', 'contacts')!, [JANE]);
+		await repo.setField(PILOT, fieldSpec('project', 'probability')!, '0.5');
+		await repo.moveProjectStage(PILOT, 'negotiation');
 
 		expect(app.vault.readNote(JANE)?.frontmatter).toMatchObject({ role: 'COO' });
 		expect(app.vault.readNote(JANE)?.frontmatter).not.toHaveProperty('next_follow_up');

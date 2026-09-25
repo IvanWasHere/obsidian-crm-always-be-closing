@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, Notice, SuggestModal, normalizePath, type FuzzyMatch } from 'obsidian';
+import { FuzzySuggestModal, Notice, SuggestModal, normalizePath, type FuzzyMatch, type TFile } from 'obsidian';
 import type CrmPlugin from '../main';
 import { exportTable } from '../core/csvExport';
 import { nextNumber } from '../core/billing';
@@ -16,9 +16,10 @@ import { ReactModal } from './ReactModal';
 const TITLES: Record<Exclude<EntityType, 'interaction'>, string> = {
 	contact: 'New contact',
 	company: 'New company',
-	deal: 'New deal',
+	project: 'New project',
 	quote: 'New quote',
 	invoice: 'New invoice',
+	requirement: 'New requirement',
 };
 
 /** Starting values for a new quote or invoice: next number, dates from settings, one empty line. */
@@ -37,7 +38,7 @@ export function billingDefaults(plugin: CrmPlugin, type: 'quote' | 'invoice'): F
 	};
 }
 
-/** Opens a form for a new contact, company, deal, quote or invoice, then opens the created note. */
+/** Opens a form for a new contact, company, project, quote or invoice, then opens the created note. */
 export function openCreateModal(plugin: CrmPlugin, type: Exclude<EntityType, 'interaction'>, initial: FieldValues = {}) {
 	const defaults = type === 'quote' || type === 'invoice' ? billingDefaults(plugin, type) : {};
 	new ReactModal(plugin, TITLES[type], (close) => (
@@ -80,7 +81,7 @@ export function openLogInteractionModal(
 }
 
 /**
- * Quick capture: fuzzy-pick a contact or open deal, then log with only
+ * Quick capture: fuzzy-pick a contact or open project, then log with only
  * kind, summary and notes (date is today; links are filled in).
  */
 export class QuickLogModal extends FuzzySuggestModal<Entity> {
@@ -93,7 +94,7 @@ export class QuickLogModal extends FuzzySuggestModal<Entity> {
 		const crm = this.plugin.index.getSnapshot();
 		return [
 			...crm.all('contact').filter((c) => c.status !== 'archived'),
-			...crm.all('deal').filter((d) => !isClosedStage(d.stage)),
+			...crm.all('project').filter((d) => !isClosedStage(d.stage)),
 		];
 	}
 
@@ -106,7 +107,7 @@ export class QuickLogModal extends FuzzySuggestModal<Entity> {
 		const company = this.plugin.index.getSnapshot().companyOf(match.item.path)?.name;
 		el.createEl('small', {
 			cls: 'abc-suggestion-note',
-			text: [match.item.type === 'deal' ? 'Deal' : 'Contact', company].filter(Boolean).join(' · '),
+			text: [match.item.type === 'project' ? 'Project' : 'Contact', company].filter(Boolean).join(' · '),
 		});
 	}
 
@@ -122,10 +123,11 @@ export class QuickLogModal extends FuzzySuggestModal<Entity> {
 const EXPORT_LABELS: Record<EntityType, string> = {
 	contact: 'Contacts',
 	company: 'Companies',
-	deal: 'Deals',
+	project: 'Projects',
 	interaction: 'Interactions',
 	quote: 'Quotes',
 	invoice: 'Invoices',
+	requirement: 'Requirements',
 };
 
 /** Picks an entity type, then writes its CSV into an `Exports` folder next to the CRM folders. */
@@ -190,7 +192,7 @@ export function openScheduleModal(plugin: CrmPlugin, initial: FieldValues = {}) 
 		<EntityForm
 			type="interaction"
 			initial={{ kind: 'meeting', date: formatDate(new Date()), time: nextHour(), duration: '30', ...initial }}
-			fields={['kind', 'date', 'time', 'duration', 'contacts', 'deal', 'summary', 'location']}
+			fields={['kind', 'date', 'time', 'duration', 'contacts', 'project', 'summary', 'location']}
 			submitLabel="Schedule"
 			bodyLabel="Agenda"
 			onSubmit={async (values, body) => {
@@ -200,4 +202,32 @@ export function openScheduleModal(plugin: CrmPlugin, initial: FieldValues = {}) 
 			}}
 		/>
 	)).open();
+}
+
+/** Fuzzy search over every vault file (notes, images, PDFs…) except those in `exclude`. */
+class FilePickerModal extends FuzzySuggestModal<TFile> {
+	constructor(
+		plugin: CrmPlugin,
+		private exclude: readonly string[],
+		private onPick: (file: TFile) => void,
+	) {
+		super(plugin.app);
+		this.setPlaceholder('Link a file…');
+	}
+
+	getItems(): TFile[] {
+		return this.app.vault.getFiles().filter((f) => !this.exclude.includes(f.path));
+	}
+
+	getItemText(file: TFile): string {
+		return file.path;
+	}
+
+	onChooseItem(file: TFile) {
+		this.onPick(file);
+	}
+}
+
+export function openFilePicker(plugin: CrmPlugin, exclude: readonly string[], onPick: (file: TFile) => void) {
+	new FilePickerModal(plugin, exclude, onPick).open();
 }

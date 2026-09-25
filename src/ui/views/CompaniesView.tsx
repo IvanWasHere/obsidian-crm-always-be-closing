@@ -15,10 +15,10 @@ import { fieldsFor } from '../../core/fields';
 interface Row {
 	company: Company;
 	contacts: number;
-	openDeals: number;
+	openProjects: number;
 	/** Display string, e.g. `€12,000 · $5,000`. */
 	pipeline: string;
-	/** Sum of open deal values regardless of currency, for sorting only. */
+	/** Sum of open project values regardless of currency, for sorting only. */
 	pipelineSum: number;
 	lastInteraction?: string;
 }
@@ -29,7 +29,7 @@ function matchesSearch({ company }: Row, query: string) {
 	return [company.name, company.domain, company.industry, ...company.tags].some((s) => s?.toLowerCase().includes(q));
 }
 
-/** All companies with their contacts, open deals and latest interaction rolled up. */
+/** All companies with their contacts, open projects and latest interaction rolled up. */
 export function CompaniesView() {
 	const crm = useCrm();
 	const { plugin } = usePlugin();
@@ -43,11 +43,11 @@ export function CompaniesView() {
 			crm
 				.all('company')
 				.map((company) => {
-					const open = crm.dealsOf(company.path).filter((d) => !isClosedStage(d.stage));
+					const open = crm.projectsOf(company.path).filter((d) => !isClosedStage(d.stage));
 					return {
 						company,
 						contacts: crm.contactsOf(company.path).length,
-						openDeals: open.length,
+						openProjects: open.length,
 						pipeline: formatTotals(totalsByCurrency(open, defaultCurrency)),
 						pipelineSum: open.reduce((sum, d) => sum + (d.value ?? 0), 0),
 						lastInteraction: crm.interactionsOf(company.path)[0]?.date,
@@ -72,7 +72,7 @@ export function CompaniesView() {
 				render: (r) => r.company.industry,
 			},
 			{ id: 'contacts', header: 'Contacts', sortValue: (r) => r.contacts, render: (r) => r.contacts },
-			{ id: 'openDeals', header: 'Open deals', sortValue: (r) => r.openDeals, render: (r) => r.openDeals },
+			{ id: 'openProjects', header: 'Open projects', sortValue: (r) => r.openProjects, render: (r) => r.openProjects },
 			{
 				id: 'pipeline',
 				header: 'Pipeline',

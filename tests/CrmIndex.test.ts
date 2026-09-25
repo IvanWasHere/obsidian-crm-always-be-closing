@@ -6,13 +6,13 @@ import { setup } from './fixtures';
 const JANE = 'CRM/Contacts/Jane Doe.md';
 const MARIA = 'CRM/Contacts/Maria Garcia.md';
 const ACME = 'CRM/Companies/Acme Inc.md';
-const PILOT = 'CRM/Deals/Acme - Pilot.md';
+const PILOT = 'CRM/Projects/Acme - Pilot.md';
 
 const names = (list: readonly { name: string }[]) => list.map((e) => e.name);
 
 describe('classify', () => {
 	it('uses the type field, then the folder', () => {
-		expect(classify('Anywhere/x.md', { type: 'crm-deal' }, DEFAULT_SETTINGS)).toBe('deal');
+		expect(classify('Anywhere/x.md', { type: 'crm-project' }, DEFAULT_SETTINGS)).toBe('project');
 		expect(classify('CRM/Contacts/x.md', undefined, DEFAULT_SETTINGS)).toBe('contact');
 		expect(classify('CRM/Contacts/x.md', { type: 'daily' }, DEFAULT_SETTINGS)).toBeNull();
 		expect(classify('CRM/Contacts/photo.png', undefined, DEFAULT_SETTINGS)).toBeNull();
@@ -30,7 +30,7 @@ describe('CrmIndex', () => {
 		const crm = index.getSnapshot();
 		expect(crm.count('contact')).toBe(3);
 		expect(crm.count('company')).toBe(2);
-		expect(crm.count('deal')).toBe(2);
+		expect(crm.count('project')).toBe(2);
 		expect(crm.count('interaction')).toBe(2);
 		expect(names(crm.all('contact'))).toEqual(['Jane Doe', 'John Smith', 'Maria Garcia']);
 		expect(crm.all('interaction').map((i) => i.date)).toEqual(['2026-09-20', '2026-09-10']);
@@ -47,12 +47,12 @@ describe('CrmIndex', () => {
 		expect(crm.companyOf(JANE)?.name).toBe('Acme Inc');
 		expect(names(crm.contactsOf(ACME))).toEqual(['Jane Doe', 'Maria Garcia']);
 		expect(names(crm.contactsOf(PILOT))).toEqual(['Jane Doe', 'Maria Garcia']);
-		expect(names(crm.dealsOf(ACME))).toEqual(['Acme – Pilot']);
-		expect(names(crm.dealsOf(JANE))).toEqual(['Acme – Pilot']);
+		expect(names(crm.projectsOf(ACME))).toEqual(['Acme – Pilot']);
+		expect(names(crm.projectsOf(JANE))).toEqual(['Acme – Pilot']);
 		expect(crm.interactionsOf(JANE).map((i) => i.date)).toEqual(['2026-09-20']);
 		expect(crm.interactionsOf(PILOT).map((i) => i.date)).toEqual(['2026-09-20', '2026-09-10']);
 		expect(crm.interactionsOf(ACME).map((i) => i.date)).toEqual(['2026-09-20', '2026-09-10']);
-		expect(crm.dealOf('CRM/Interactions/2026-09-20 Call with Jane Doe.md')?.name).toBe('Acme – Pilot');
+		expect(crm.projectOf('CRM/Interactions/2026-09-20 Call with Jane Doe.md')?.name).toBe('Acme – Pilot');
 	});
 
 	it('ignores links to missing notes or notes of the wrong type', () => {

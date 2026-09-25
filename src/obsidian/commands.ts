@@ -9,6 +9,7 @@ import {
 } from './modals';
 import { contextValues } from './prefill';
 import { exportAndOpenPdf } from './pdf';
+import { runMigration } from './migrate';
 import { exportMeetingIcs, exportUpcomingIcs } from './ics';
 import {
 	VIEW_TYPE_BILLING,
@@ -39,7 +40,7 @@ export function registerCommands(plugin: CrmPlugin) {
 	});
 	plugin.addCommand({
 		id: 'open-pipeline',
-		name: 'Open deal pipeline',
+		name: 'Open project pipeline',
 		callback: () => void plugin.activateView(VIEW_TYPE_PIPELINE),
 	});
 	plugin.addCommand({
@@ -53,6 +54,11 @@ export function registerCommands(plugin: CrmPlugin) {
 		callback: () => void plugin.activateView(VIEW_TYPE_REPORTS),
 	});
 	plugin.addCommand({
+		id: 'new-requirement',
+		name: 'New requirement',
+		callback: () => openCreateModal(plugin, 'requirement', contextValues(plugin, 'requirement')),
+	});
+	plugin.addCommand({
 		id: 'new-quote',
 		name: 'New quote',
 		callback: () => openCreateModal(plugin, 'quote', contextValues(plugin, 'billing')),
@@ -61,6 +67,11 @@ export function registerCommands(plugin: CrmPlugin) {
 		id: 'new-invoice',
 		name: 'New invoice',
 		callback: () => openCreateModal(plugin, 'invoice', contextValues(plugin, 'billing')),
+	});
+	plugin.addCommand({
+		id: 'migrate-deals-to-projects',
+		name: 'Migrate deals to projects',
+		callback: () => void runMigration(plugin),
 	});
 	plugin.addCommand({
 		id: 'open-calendar',
@@ -115,9 +126,9 @@ export function registerCommands(plugin: CrmPlugin) {
 		callback: () => openCreateModal(plugin, 'company'),
 	});
 	plugin.addCommand({
-		id: 'new-deal',
-		name: 'New deal',
-		callback: () => openCreateModal(plugin, 'deal', contextValues(plugin, 'deal')),
+		id: 'new-project',
+		name: 'New project',
+		callback: () => openCreateModal(plugin, 'project', contextValues(plugin, 'project')),
 	});
 	plugin.addCommand({
 		id: 'quick-log',

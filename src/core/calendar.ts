@@ -2,12 +2,20 @@ import type { CrmSnapshot } from './CrmSnapshot';
 import { isOverdue } from './billing';
 import { addDays } from './dates';
 import { isClosedStage } from './insights';
+import { projectDeadlines } from './projects';
 import type { DateString, Interaction, InteractionKind } from './types';
 
 /** What an event is. Each has a fixed color slot, icon and toggle in the calendar. */
-export type EventCategory = 'meeting' | 'interaction' | 'follow-up' | 'invoice-due' | 'deal-close';
+export type EventCategory = 'meeting' | 'interaction' | 'follow-up' | 'invoice-due' | 'project-close' | 'deadline';
 
-export const EVENT_CATEGORIES: readonly EventCategory[] = ['meeting', 'follow-up', 'invoice-due', 'deal-close', 'interaction'];
+export const EVENT_CATEGORIES: readonly EventCategory[] = [
+	'meeting',
+	'follow-up',
+	'invoice-due',
+	'project-close',
+	'interaction',
+	'deadline',
+];
 
 export interface CalendarEvent {
 	/** Unique per event (a note can produce more than one). */
@@ -22,7 +30,7 @@ export interface CalendarEvent {
 	duration?: number;
 	title: string;
 	detail?: string;
-	/** Past due (follow-ups, invoices, deal closes). */
+	/** Past due (follow-ups, invoices, project closes). */
 	overdue?: boolean;
 	kind?: InteractionKind;
 }
@@ -104,18 +112,38 @@ export function calendarEvents(
 		}
 	}
 
-	if (include.has('deal-close')) {
-		for (const d of crm.all('deal')) {
+	if (include.has('project-close')) {
+		for (const d of crm.all('project')) {
 			if (isClosedStage(d.stage) || !inRange(d.expectedClose)) continue;
 			events.push({
 				id: `${d.path}#close`,
-				category: 'deal-close',
+				category: 'project-close',
 				path: d.path,
 				date: d.expectedClose,
 				title: `Close: ${d.name}`,
 				detail: d.stage,
 				overdue: d.expectedClose < today,
 			});
+		}
+	}
+
+	if (include.has('deadline')) {
+		// Project deadlines, unfinished phases and open requirements.
+		for (const p of crm.all('project')) {
+			if (isClosedStage(p.stage)) continue;
+			for (const d of projectDeadlines(p, crm)) {
+				if (!inRange(d.date)) continue;
+				const isRequirement = d.path !== p.path;
+				events.push({
+					id: `${d.path}#deadline:${d.label}`,
+					category: 'deadline',
+					path: d.path,
+					date: d.date,
+					title: d.label === 'Project deadline' ? `Deadline: ${p.name}` : isRequirement ? `Due: ${d.label}` : `${d.label} due`,
+					detail: p.name,
+					overdue: d.date < today,
+				});
+			}
 		}
 	}
 

@@ -1,5 +1,13 @@
 import type { CrmSettings } from '../settings';
-import { CONTACT_STATUSES, INTERACTION_KINDS, INVOICE_STATUSES, QUOTE_STATUSES, type EntityType } from './types';
+import {
+	CONTACT_STATUSES,
+	INTERACTION_KINDS,
+	INVOICE_STATUSES,
+	PRIORITIES,
+	QUOTE_STATUSES,
+	REQUIREMENT_STATUSES,
+	type EntityType,
+} from './types';
 
 export type FieldKind =
 	| 'text'
@@ -15,7 +23,9 @@ export type FieldKind =
 	| 'tags'
 	| 'items'
 	| 'multiline'
-	| 'time';
+	| 'time'
+	| 'phases'
+	| 'assets';
 
 /**
  * One editable frontmatter field. Forms, the entity panel and
@@ -70,7 +80,7 @@ export const FIELDS: Record<EntityType, FieldSpec[]> = {
 		f('tax_id', 'Tax ID', 'text'),
 		f('tags', 'Tags', 'tags'),
 	],
-	deal: [
+	project: [
 		f('name', 'Name', 'text', { required: true }),
 		f('company', 'Company', 'link', { target: 'company' }),
 		f('contacts', 'Contacts', 'links', { target: 'contact' }),
@@ -78,7 +88,10 @@ export const FIELDS: Record<EntityType, FieldSpec[]> = {
 		f('value', 'Value', 'number'),
 		f('currency', 'Currency', 'text'),
 		f('expected_close', 'Expected close', 'date'),
+		f('deadline', 'Deadline', 'date'),
 		f('probability', 'Probability', 'number', { placeholder: '0–1' }),
+		f('phases', 'Phases', 'phases'),
+		f('assets', 'Assets', 'assets'),
 	],
 	interaction: [
 		f('kind', 'Kind', 'select', { options: () => INTERACTION_KINDS }),
@@ -87,15 +100,23 @@ export const FIELDS: Record<EntityType, FieldSpec[]> = {
 		f('duration', 'Duration (min)', 'number', { placeholder: '30' }),
 		f('location', 'Location', 'text', { placeholder: 'Office, address or video link' }),
 		f('contacts', 'Contacts', 'links', { target: 'contact' }),
-		f('deal', 'Deal', 'link', { target: 'deal' }),
+		f('project', 'Project', 'link', { target: 'project' }),
 		f('summary', 'Summary', 'text'),
+	],
+	requirement: [
+		f('name', 'Name', 'text', { required: true }),
+		f('project', 'Project', 'link', { target: 'project' }),
+		f('status', 'Status', 'select', { options: () => REQUIREMENT_STATUSES, required: true }),
+		f('priority', 'Priority', 'select', { options: () => PRIORITIES }),
+		f('deadline', 'Deadline', 'date'),
+		f('tags', 'Tags', 'tags'),
 	],
 	quote: [
 		f('number', 'Number', 'text', { required: true }),
 		f('status', 'Status', 'select', { options: () => QUOTE_STATUSES, required: true }),
 		f('company', 'Company', 'link', { target: 'company' }),
 		f('contact', 'Contact', 'link', { target: 'contact' }),
-		f('deal', 'Deal', 'link', { target: 'deal' }),
+		f('project', 'Project', 'link', { target: 'project' }),
 		f('issued', 'Issued', 'date'),
 		f('valid_until', 'Valid until', 'date'),
 		f('currency', 'Currency', 'text'),
@@ -106,7 +127,7 @@ export const FIELDS: Record<EntityType, FieldSpec[]> = {
 		f('status', 'Status', 'select', { options: () => INVOICE_STATUSES, required: true }),
 		f('company', 'Company', 'link', { target: 'company' }),
 		f('contact', 'Contact', 'link', { target: 'contact' }),
-		f('deal', 'Deal', 'link', { target: 'deal' }),
+		f('project', 'Project', 'link', { target: 'project' }),
 		f('quote', 'Quote', 'link', { target: 'quote' }),
 		f('issued', 'Issued', 'date'),
 		f('due', 'Due', 'date'),
@@ -176,6 +197,13 @@ export function fieldsFor(type: EntityType, settings: CrmSettings): FieldSpec[] 
 	];
 }
 
+/** A phase as edited in the UI. `done` is `'true'` or `''`. */
+export interface PhaseInput {
+	name: string;
+	deadline: string;
+	done: string;
+}
+
 /** A line item as edited in the UI: every cell is text until saved. */
 export interface LineItemInput {
 	description: string;
@@ -188,7 +216,7 @@ export interface LineItemInput {
  * A field value as edited in the UI: text for scalar fields, vault paths
  * for `link`/`links`, line items for `items`. Empty means "remove".
  */
-export type FieldValue = string | string[] | LineItemInput[];
+export type FieldValue = string | string[] | LineItemInput[] | PhaseInput[];
 
 export type FieldValues = Record<string, FieldValue | undefined>;
 

@@ -4,7 +4,7 @@ import { Menu } from './mocks/obsidian';
 import { PipelineView } from '../src/ui/views/PipelineView';
 import { SEED, renderWithCrm } from './fixtures';
 
-const PILOT = 'CRM/Deals/Acme - Pilot.md';
+const PILOT = 'CRM/Projects/Acme - Pilot.md';
 const column = (stage: string) => screen.getByRole('region', { name: stage });
 const cardsIn = (stage: string) => within(column(stage)).queryAllByRole('article').map((a) => a.getAttribute('aria-label'));
 
@@ -40,12 +40,12 @@ describe('PipelineView', () => {
 	});
 
 	it('adds a flagged column for stages missing from settings', () => {
-		renderWithCrm(<PipelineView />, { ...SEED, 'CRM/Deals/Odd.md': { type: 'crm-deal', stage: 'parked' } });
+		renderWithCrm(<PipelineView />, { ...SEED, 'CRM/Projects/Odd.md': { type: 'crm-project', stage: 'parked' } });
 		expect(cardsIn('parked')).toEqual(['Odd']);
 		expect(within(column('parked')).getByTitle('Not one of the pipeline stages in settings')).toBeInTheDocument();
 	});
 
-	it('moves a deal by drag and drop, showing it in the new column right away', async () => {
+	it('moves a project by drag and drop, showing it in the new column right away', async () => {
 		const ctx = renderWithCrm(<PipelineView />);
 		const dt = dataTransfer();
 		fireEvent.dragStart(screen.getByRole('article', { name: 'Acme – Pilot' }), { dataTransfer: dt });
@@ -60,7 +60,7 @@ describe('PipelineView', () => {
 		expect(cardsIn('negotiation')).toEqual(['Acme – Pilot']);
 	});
 
-	it('ignores drops that are not deals', () => {
+	it('ignores drops that are not projects', () => {
 		const ctx = renderWithCrm(<PipelineView />);
 		const dt = dataTransfer();
 		dt.setData('text/plain', 'hello');
@@ -69,7 +69,7 @@ describe('PipelineView', () => {
 		expect(ctx.app.vault.readNote(PILOT)?.frontmatter?.stage).toBe('proposal');
 	});
 
-	it('moves a deal from the card menu', async () => {
+	it('moves a project from the card menu', async () => {
 		const ctx = renderWithCrm(<PipelineView />);
 		fireEvent.click(screen.getByRole('button', { name: 'Actions for Acme – Pilot' }));
 		const menu = Menu.shown!;

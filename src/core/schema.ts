@@ -1,20 +1,27 @@
 import { parseLineItems, parseStageHistory, totalsOf } from './billing';
+import { parsePhases } from './projects';
 import {
 	CONTACT_STATUSES,
 	INTERACTION_KINDS,
 	INVOICE_STATUSES,
+	PRIORITIES,
+	REQUIREMENT_STATUSES,
 	QUOTE_STATUSES,
+	LEGACY_TYPE_TAGS,
 	TYPE_TAGS,
 	type Company,
 	type Contact,
 	type ContactStatus,
 	type DateString,
-	type Deal,
+	type Project,
 	type Entity,
 	type EntityType,
 	type Interaction,
 	type InteractionKind,
 	type Invoice,
+	type Priority,
+	type Requirement,
+	type RequirementStatus,
 	type InvoiceStatus,
 	type Quote,
 	type QuoteStatus,
@@ -24,7 +31,7 @@ import {
 export type Frontmatter = Record<string, unknown>;
 
 export interface ParseOptions {
-	/** Known pipeline stages. Deals in other stages get an issue. */
+	/** Known pipeline stages. Projects in other stages get an issue. */
 	stages: readonly string[];
 }
 
@@ -33,7 +40,7 @@ export function typeFromTag(value: unknown): EntityType | null {
 	for (const [type, tag] of Object.entries(TYPE_TAGS)) {
 		if (value === tag) return type as EntityType;
 	}
-	return null;
+	return typeof value === 'string' ? (LEGACY_TYPE_TAGS[value] ?? null) : null;
 }
 
 export function basename(path: string): string {
@@ -85,7 +92,7 @@ class FieldReader {
 
 	constructor(private fm: Frontmatter) {}
 
-	private has(key: string) {
+	has(key: string) {
 		const v = this.fm[key];
 		return v !== undefined && v !== null && v !== '';
 	}
@@ -222,7 +229,7 @@ export function parseEntity(
 				issues: r.issues,
 			} satisfies Company;
 			break;
-		case 'deal': {
+		case 'project': {
 			let stage = r.string('stage');
 			if (stage === undefined) {
 				stage = options.stages[0] ?? 'lead';
@@ -246,8 +253,11 @@ export function parseEntity(
 				expectedClose: r.date('expected_close'),
 				probability,
 				stageHistory: parseStageHistory(fm?.stage_history),
+				deadline: r.date('deadline'),
+				phases: readPhases(fm?.phases, r.issues),
+				assets: r.links('assets'),
 				issues: r.issues,
-			} satisfies Deal;
+			} satisfies Project;
 			break;
 		}
 		case 'interaction':
@@ -260,10 +270,22 @@ export function parseEntity(
 				duration: r.number('duration'),
 				location: r.string('location'),
 				contacts: r.links('contacts'),
-				deal: r.link('deal'),
+				// `deal:` is the key used before projects replaced deals.
+				project: r.link('project') ?? r.link('deal'),
 				summary: r.string('summary'),
 				issues: r.issues,
 			} satisfies Interaction;
+			break;
+		case 'requirement':
+			entity = {
+				...base,
+				type,
+				project: r.link('project'),
+				status: r.oneOf<RequirementStatus>('status', REQUIREMENT_STATUSES, 'open'),
+				priority: r.has('priority') ? r.oneOf<Priority>('priority', PRIORITIES, 'medium') : undefined,
+				deadline: r.date('deadline'),
+				issues: r.issues,
+			} satisfies Requirement;
 			break;
 		case 'quote':
 		case 'invoice': {
@@ -276,7 +298,8 @@ export function parseEntity(
 				number: r.string('number'),
 				company: r.link('company'),
 				contact: r.link('contact'),
-				deal: r.link('deal'),
+				// `deal:` is the key used before projects replaced deals.
+				project: r.link('project') ?? r.link('deal'),
 				issued: r.date('issued'),
 				currency: r.string('currency')?.toUpperCase(),
 				items,
@@ -304,6 +327,12 @@ export function parseEntity(
 		}
 	}
 	return stripUndefined(entity);
+}
+
+function readPhases(value: unknown, issues: string[]) {
+	const { phases, invalid } = parsePhases(value);
+	if (invalid > 0) issues.push(`${invalid} phase${invalid === 1 ? ' is' : 's are'} unreadable`);
+	return phases;
 }
 
 /** Drops keys whose value is undefined so entities compare and print cleanly. */

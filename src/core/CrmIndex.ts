@@ -7,7 +7,7 @@ import type { Entity, EntityType } from './types';
 const FOLDER_TYPES: [keyof CrmSettings['folders'], EntityType][] = [
 	['contacts', 'contact'],
 	['companies', 'company'],
-	['deals', 'deal'],
+	['projects', 'project'],
 	['interactions', 'interaction'],
 	['quotes', 'quote'],
 	['invoices', 'invoice'],
@@ -44,10 +44,10 @@ export class CrmIndex {
 	private timer: number | null = null;
 
 	/**
-	 * Called when a deal already in the index changes stage (from any source,
+	 * Called when a project already in the index changes stage (from any source,
 	 * including manual frontmatter edits). Not called for the initial scan.
 	 */
-	onDealStageChange?: (path: string, stage: string, previous: { stage: string; since?: string }) => void;
+	onProjectStageChange?: (path: string, stage: string, previous: { stage: string; since?: string }) => void;
 
 	constructor(
 		private app: App,
@@ -150,8 +150,8 @@ export class CrmIndex {
 			changed ||= had || has;
 
 			const after = this.entities.get(path);
-			if (before?.type === 'deal' && after?.type === 'deal' && before.stage !== after.stage) {
-				this.onDealStageChange?.(path, after.stage, { stage: before.stage, since: before.created });
+			if (before?.type === 'project' && after?.type === 'project' && before.stage !== after.stage) {
+				this.onProjectStageChange?.(path, after.stage, { stage: before.stage, since: before.created });
 			}
 		}
 		return changed;

@@ -2,8 +2,8 @@ import type { CrmSettings } from '../settings';
 import type { CrmSnapshot } from './CrmSnapshot';
 import { isOverdue, wasSent } from './billing';
 import { addDays, daysBetween } from './dates';
-import { isClosedStage, openDeals } from './insights';
-import { INTERACTION_KINDS, type DateString, type Deal, type InteractionKind, type StageChange } from './types';
+import { isClosedStage, openProjects } from './insights';
+import { INTERACTION_KINDS, type DateString, type Project, type InteractionKind, type StageChange } from './types';
 
 export type Granularity = 'day' | 'week' | 'month' | 'quarter';
 
@@ -109,7 +109,12 @@ export interface Report {
 		lost: number[];
 		newContacts: number[];
 	};
-	money: { invoiced: number[]; paid: number[] };
+	money: {
+		/** Gross of invoices sent, by issue date. */
+		invoiced: number[];
+		/** Gross of invoices paid, by payment date. */
+		paid: number[];
+	};
 	interactions: Record<InteractionKind, number[]>;
 	kpis: {
 		leads: Kpi;
@@ -117,7 +122,7 @@ export interface Report {
 		invoicesSent: Kpi;
 		invoiced: Kpi;
 		revenuePaid: Kpi;
-		dealsWon: Kpi;
+		projectsWon: Kpi;
 		wonValue: Kpi;
 		/** Accepted ÷ (accepted + declined) of quotes issued in the range; null when none were decided. */
 		acceptanceRate: Kpi;
@@ -128,19 +133,19 @@ export interface Report {
 	};
 	/** Right now, not tied to the range. */
 	current: { outstanding: number; overdue: number; overdueCount: number; openPipeline: number };
-	/** Open stages in pipeline order with deal counts and values. */
+	/** Open stages in pipeline order with project counts and values. */
 	pipelineByStage: { stage: string; count: number; value: number }[];
-	/** Documents and deals in other currencies, left out of money figures. */
+	/** Documents and projects in other currencies, left out of money figures. */
 	excludedForCurrency: number;
 }
 
 export const isWonStage = (stage: string) => /^(closed[\s-]*)?won$/i.test(stage.trim());
 export const isLostStage = (stage: string) => /^(closed[\s-]*)?lost$/i.test(stage.trim());
 
-/** Stage history, or — for deals from before tracking — their current stage since `created`. */
-export function stageEntries(deal: Deal): StageChange[] {
-	if (deal.stageHistory.length > 0) return deal.stageHistory;
-	return deal.created ? [{ date: deal.created, stage: deal.stage }] : [];
+/** Stage history, or — for projects from before tracking — their current stage since `created`. */
+export function stageEntries(project: Project): StageChange[] {
+	if (project.stageHistory.length > 0) return project.stageHistory;
+	return project.created ? [{ date: project.created, stage: project.stage }] : [];
 }
 
 /**
@@ -207,13 +212,13 @@ export function buildReport(crm: CrmSnapshot, settings: CrmSettings, g: Granular
 	const won = tally();
 	const lost = tally();
 	const wonValue = tally();
-	for (const deal of crm.all('deal')) {
-		const counted = inCurrency(deal.currency);
-		for (const change of stageEntries(deal)) {
+	for (const project of crm.all('project')) {
+		const counted = inCurrency(project.currency);
+		for (const change of stageEntries(project)) {
 			if (change.stage === leadStage) leads.add(change.date);
 			if (isWonStage(change.stage)) {
 				won.add(change.date);
-				if (counted && deal.value !== undefined) wonValue.add(change.date, deal.value);
+				if (counted && project.value !== undefined) wonValue.add(change.date, project.value);
 			}
 			if (isLostStage(change.stage)) lost.add(change.date);
 		}
@@ -265,12 +270,12 @@ export function buildReport(crm: CrmSnapshot, settings: CrmSettings, g: Granular
 		allInteractions.add(i.date);
 	}
 
-	const open = openDeals(crm).filter((d) => (d.currency ?? currency) === currency);
+	const open = openProjects(crm).filter((d) => (d.currency ?? currency) === currency);
 	const pipelineByStage = settings.pipelineStages
 		.filter((stage) => !isClosedStage(stage))
 		.map((stage) => {
-			const deals = open.filter((d) => d.stage === stage);
-			return { stage, count: deals.length, value: deals.reduce((sum, d) => sum + (d.value ?? 0), 0) };
+			const projects = open.filter((d) => d.stage === stage);
+			return { stage, count: projects.length, value: projects.reduce((sum, d) => sum + (d.value ?? 0), 0) };
 		});
 
 	const round = (n: number) => Math.round(n * 100) / 100;
@@ -297,7 +302,7 @@ export function buildReport(crm: CrmSnapshot, settings: CrmSettings, g: Granular
 			invoicesSent: invoicesSent.kpi(),
 			invoiced: invoiced.kpi(),
 			revenuePaid: paid.kpi(),
-			dealsWon: won.kpi(),
+			projectsWon: won.kpi(),
 			wonValue: wonValue.kpi(),
 			acceptanceRate: decided.kpi((v) => (v.length === 0 ? null : v.filter(Boolean).length / v.length)),
 			avgDaysToPay: daysToPay.kpi((v) => (v.length === 0 ? null : v.reduce((a, b) => a + b, 0) / v.length)),
@@ -313,4 +318,40 @@ export function buildReport(crm: CrmSnapshot, settings: CrmSettings, g: Granular
 		pipelineByStage,
 		excludedForCurrency: excluded,
 	};
+}
+
+/** Invoice statuses as charted: `sent` splits into pending and overdue. */
+export const INVOICE_CHART_STATUSES = ['pending', 'overdue', 'paid', 'draft', 'void'] as const;
+export type InvoiceChartStatus = (typeof INVOICE_CHART_STATUSES)[number];
+
+/**
+ * Gross amount of every invoice per period, split by its status today.
+ * Invoices are placed by issue date (drafts without one by `created`), so
+ * each appears exactly once. Only the default currency is summed.
+ */
+export function invoicesByStatus(
+	crm: CrmSnapshot,
+	settings: CrmSettings,
+	g: Granularity,
+	today: DateString,
+): { buckets: Bucket[]; amounts: Record<InvoiceChartStatus, number[]>; excluded: number } {
+	const buckets = makeBuckets(g, today);
+	const amounts = Object.fromEntries(INVOICE_CHART_STATUSES.map((s) => [s, buckets.map(() => 0)])) as Record<
+		InvoiceChartStatus,
+		number[]
+	>;
+	let excluded = 0;
+	for (const invoice of crm.all('invoice')) {
+		if ((invoice.currency ?? settings.defaultCurrency) !== settings.defaultCurrency) {
+			excluded++;
+			continue;
+		}
+		const date = invoice.issued ?? invoice.created;
+		const i = date ? bucketIndex(buckets, date) : -1;
+		if (i < 0) continue;
+		const status: InvoiceChartStatus =
+			invoice.status === 'sent' ? (isOverdue(invoice, today) ? 'overdue' : 'pending') : invoice.status;
+		amounts[status][i] = Math.round((amounts[status][i]! + invoice.totals.gross) * 100) / 100;
+	}
+	return { buckets, amounts, excluded };
 }
